@@ -9,9 +9,11 @@ import {
   base64Encode,
   getLangfuseTraceIdFromBaggage,
   getPropagatedAttributesFromContext,
+  resolveSealangfuseCredentials,
+  type SealangfuseCredentials,
 } from "@langfuse/core";
 import { Context } from "@opentelemetry/api";
-import { hrTimeToMilliseconds } from "@opentelemetry/core";
+import { ExportResultCode, hrTimeToMilliseconds } from "@opentelemetry/core";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import {
   Span,
@@ -92,10 +94,22 @@ export interface LangfuseSpanProcessorParams {
   secretKey?: string;
 
   /**
+   * Sealangfuse API key used to resolve Langfuse project credentials.
+   * Can also be set via SEALANGFUSE_API_KEY environment variable.
+   */
+  apiKey?: string;
+
+  /**
    * Langfuse instance base URL. Can also be set via LANGFUSE_BASE_URL environment variable.
    * @defaultValue "https://cloud.langfuse.com"
    */
   baseUrl?: string;
+
+  /**
+   * Optional override for the Sealangfuse credential resolver endpoint.
+   * Can also be set via SEALANGFUSE_CREDENTIALS_URL environment variable.
+   */
+  credentialsUrl?: string;
 
   /**
    * Number of spans to batch before flushing. Can also be set via LANGFUSE_FLUSH_AT environment variable.
@@ -150,6 +164,74 @@ export interface LangfuseSpanProcessorParams {
    * @defaultValue "batched"
    */
   exportMode?: "immediate" | "batched";
+}
+
+class LazySealangfuseOTLPTraceExporter implements SpanExporter {
+  private exporter?: OTLPTraceExporter;
+  private exporterPromise?: Promise<OTLPTraceExporter>;
+
+  constructor(
+    private readonly params: {
+      baseUrl: string;
+      credentials: Promise<SealangfuseCredentials>;
+      timeoutSeconds: number;
+      additionalHeaders?: Record<string, string>;
+    },
+  ) {}
+
+  public export(
+    spans: ReadableSpan[],
+    resultCallback: (result: { code: ExportResultCode; error?: Error }) => void,
+  ): void {
+    void this.getExporter()
+      .then((exporter) => exporter.export(spans, resultCallback))
+      .catch((error) =>
+        resultCallback({
+          code: ExportResultCode.FAILED,
+          error: error instanceof Error ? error : new Error(String(error)),
+        }),
+      );
+  }
+
+  public async forceFlush(): Promise<void> {
+    if (!this.exporterPromise) return;
+
+    const exporter = await this.exporterPromise;
+    await exporter.forceFlush?.();
+  }
+
+  public async shutdown(): Promise<void> {
+    if (!this.exporterPromise) return;
+
+    const exporter = await this.exporterPromise;
+    await exporter.shutdown();
+  }
+
+  private getExporter(): Promise<OTLPTraceExporter> {
+    if (this.exporter) return Promise.resolve(this.exporter);
+
+    this.exporterPromise ??= this.params.credentials.then((credentials) => {
+      const authHeaderValue = base64Encode(
+        `${credentials.publicKey}:${credentials.secretKey}`,
+      );
+
+      this.exporter = new OTLPTraceExporter({
+        url: `${this.params.baseUrl}/api/public/otel/v1/traces`,
+        headers: {
+          Authorization: `Basic ${authHeaderValue}`,
+          "x-langfuse-sdk-name": "javascript",
+          "x-langfuse-sdk-version": LANGFUSE_SDK_VERSION,
+          "x-langfuse-public-key": credentials.publicKey,
+          ...this.params.additionalHeaders,
+        },
+        timeoutMillis: this.params.timeoutSeconds * 1_000,
+      });
+
+      return this.exporter;
+    });
+
+    return this.exporterPromise;
+  }
 }
 
 /**
@@ -234,43 +316,77 @@ export class LangfuseSpanProcessor implements SpanProcessor {
 
     const publicKey = params?.publicKey ?? getEnv("LANGFUSE_PUBLIC_KEY");
     const secretKey = params?.secretKey ?? getEnv("LANGFUSE_SECRET_KEY");
-    const baseUrl =
+    const apiKey = params?.apiKey ?? getEnv("SEALANGFUSE_API_KEY");
+    let baseUrl =
       params?.baseUrl ??
       getEnv("LANGFUSE_BASE_URL") ??
-      getEnv("LANGFUSE_BASEURL") ?? // legacy v2
-      "https://cloud.langfuse.com";
+      getEnv("LANGFUSE_BASEURL"); // legacy v2
 
-    if (!params?.exporter && !publicKey) {
-      logger.warn(
-        "No exporter configured and no public key provided in constructor or as LANGFUSE_PUBLIC_KEY env var. Span exports will fail.",
+    if (!baseUrl && apiKey && (!publicKey || !secretKey)) {
+      throw new Error(
+        "LANGFUSE_BASE_URL or baseUrl is required when using SEALANGFUSE_API_KEY or apiKey.",
       );
     }
-    if (!params?.exporter && !secretKey) {
-      logger.warn(
-        "No exporter configured and no secret key provided in constructor or as LANGFUSE_SECRET_KEY env var. Span exports will fail.",
-      );
-    }
+
+    baseUrl = baseUrl ?? "https://cloud.langfuse.com";
+
     const flushAt = params?.flushAt ?? getEnv("LANGFUSE_FLUSH_AT");
     const flushIntervalSeconds =
       params?.flushInterval ?? getEnv("LANGFUSE_FLUSH_INTERVAL");
 
-    const authHeaderValue = base64Encode(`${publicKey}:${secretKey}`);
     const timeoutSeconds =
       params?.timeout ?? Number(getEnv("LANGFUSE_TIMEOUT") ?? 5);
 
+    const resolvedCredentials =
+      publicKey && secretKey
+        ? undefined
+        : apiKey
+          ? resolveSealangfuseCredentials({
+              apiKey,
+              baseUrl,
+              credentialsUrl: params?.credentialsUrl,
+              timeoutSeconds,
+            })
+          : undefined;
+
+    const resolvedPublicKey =
+      publicKey ??
+      (() => resolvedCredentials?.then((value) => value.publicKey));
+    const resolvedSecretKey =
+      secretKey ??
+      (() => resolvedCredentials?.then((value) => value.secretKey));
+
+    if (!params?.exporter && !publicKey && !apiKey) {
+      logger.warn(
+        "No exporter configured, no public key provided in constructor or as LANGFUSE_PUBLIC_KEY env var, and no apiKey/SEALANGFUSE_API_KEY provided. Span exports will fail.",
+      );
+    }
+    if (!params?.exporter && !secretKey && !apiKey) {
+      logger.warn(
+        "No exporter configured, no secret key provided in constructor or as LANGFUSE_SECRET_KEY env var, and no apiKey/SEALANGFUSE_API_KEY provided. Span exports will fail.",
+      );
+    }
+
     const exporter =
       params?.exporter ??
-      new OTLPTraceExporter({
-        url: `${baseUrl}/api/public/otel/v1/traces`,
-        headers: {
-          Authorization: `Basic ${authHeaderValue}`,
-          "x-langfuse-sdk-name": "javascript",
-          "x-langfuse-sdk-version": LANGFUSE_SDK_VERSION,
-          "x-langfuse-public-key": publicKey ?? "<missing>",
-          ...params?.additionalHeaders,
-        },
-        timeoutMillis: timeoutSeconds * 1_000,
-      });
+      (resolvedCredentials
+        ? new LazySealangfuseOTLPTraceExporter({
+            baseUrl,
+            credentials: resolvedCredentials,
+            timeoutSeconds,
+            additionalHeaders: params?.additionalHeaders,
+          })
+        : new OTLPTraceExporter({
+            url: `${baseUrl}/api/public/otel/v1/traces`,
+            headers: {
+              Authorization: `Basic ${base64Encode(`${publicKey}:${secretKey}`)}`,
+              "x-langfuse-sdk-name": "javascript",
+              "x-langfuse-sdk-version": LANGFUSE_SDK_VERSION,
+              "x-langfuse-public-key": publicKey ?? "<missing>",
+              ...params?.additionalHeaders,
+            },
+            timeoutMillis: timeoutSeconds * 1_000,
+          }));
 
     this.processor =
       params?.exportMode === "immediate"
@@ -293,9 +409,9 @@ export class LangfuseSpanProcessor implements SpanProcessor {
       (({ otelSpan }) => isDefaultExportSpan(otelSpan));
     this.apiClient = new LangfuseAPIClient({
       baseUrl: this.baseUrl,
-      username: this.publicKey,
-      password: secretKey,
-      xLangfusePublicKey: this.publicKey,
+      username: resolvedPublicKey,
+      password: resolvedSecretKey,
+      xLangfusePublicKey: resolvedPublicKey,
       xLangfuseSdkVersion: LANGFUSE_SDK_VERSION,
       xLangfuseSdkName: "javascript",
       environment: "", // noop as baseUrl is set
@@ -306,6 +422,7 @@ export class LangfuseSpanProcessor implements SpanProcessor {
 
     logger.debug("Initialized LangfuseSpanProcessor with params:", {
       publicKey,
+      hasApiKey: Boolean(apiKey),
       baseUrl,
       environment: this.environment,
       release: this.release,

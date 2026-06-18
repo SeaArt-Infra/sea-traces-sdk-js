@@ -3,6 +3,7 @@ import {
   LANGFUSE_SDK_VERSION,
   getGlobalLogger,
   getEnv,
+  resolveSealangfuseCredentials,
 } from "@langfuse/core";
 
 import { DatasetManager } from "./dataset/index.js";
@@ -30,12 +31,24 @@ export interface LangfuseClientParams {
   secretKey?: string;
 
   /**
+   * Sealangfuse API key used to resolve Langfuse project credentials.
+   * Can also be provided via SEALANGFUSE_API_KEY environment variable.
+   */
+  apiKey?: string;
+
+  /**
    * Base URL of the Langfuse instance to connect to.
    * Can also be provided via LANGFUSE_BASE_URL environment variable.
    *
    * @defaultValue "https://cloud.langfuse.com"
    */
   baseUrl?: string;
+
+  /**
+   * Optional override for the Sealangfuse credential resolver endpoint.
+   * Can also be provided via SEALANGFUSE_CREDENTIALS_URL environment variable.
+   */
+  credentialsUrl?: string;
 
   /**
    * Request timeout in seconds.
@@ -256,30 +269,58 @@ export class LangfuseClient {
 
     const publicKey = params?.publicKey ?? getEnv("LANGFUSE_PUBLIC_KEY");
     const secretKey = params?.secretKey ?? getEnv("LANGFUSE_SECRET_KEY");
-    this.baseUrl =
+    const apiKey = params?.apiKey ?? getEnv("SEALANGFUSE_API_KEY");
+    const configuredBaseUrl =
       params?.baseUrl ??
       getEnv("LANGFUSE_BASE_URL") ??
-      getEnv("LANGFUSE_BASEURL") ?? // legacy v2
-      "https://cloud.langfuse.com";
+      getEnv("LANGFUSE_BASEURL"); // legacy v2
 
-    if (!publicKey) {
-      logger.warn(
-        "No public key provided in constructor or as LANGFUSE_PUBLIC_KEY env var. Client operations will fail.",
+    if (!configuredBaseUrl && apiKey && (!publicKey || !secretKey)) {
+      throw new Error(
+        "LANGFUSE_BASE_URL or baseUrl is required when using SEALANGFUSE_API_KEY or apiKey.",
       );
     }
-    if (!secretKey) {
-      logger.warn(
-        "No secret key provided in constructor or as LANGFUSE_SECRET_KEY env var. Client operations will fail.",
-      );
-    }
+
+    this.baseUrl = configuredBaseUrl ?? "https://cloud.langfuse.com";
+
     const timeoutSeconds =
       params?.timeout ?? Number(getEnv("LANGFUSE_TIMEOUT") ?? 5);
 
+    const resolvedCredentials =
+      publicKey && secretKey
+        ? undefined
+        : apiKey
+          ? resolveSealangfuseCredentials({
+              apiKey,
+              baseUrl: this.baseUrl,
+              credentialsUrl: params?.credentialsUrl,
+              timeoutSeconds,
+            })
+          : undefined;
+
+    const resolvedPublicKey =
+      publicKey ??
+      (() => resolvedCredentials?.then((value) => value.publicKey));
+    const resolvedSecretKey =
+      secretKey ??
+      (() => resolvedCredentials?.then((value) => value.secretKey));
+
+    if (!publicKey && !apiKey) {
+      logger.warn(
+        "No public key provided in constructor or as LANGFUSE_PUBLIC_KEY env var and no apiKey/SEALANGFUSE_API_KEY provided. Client operations will fail.",
+      );
+    }
+    if (!secretKey && !apiKey) {
+      logger.warn(
+        "No secret key provided in constructor or as LANGFUSE_SECRET_KEY env var and no apiKey/SEALANGFUSE_API_KEY provided. Client operations will fail.",
+      );
+    }
+
     this.api = new LangfuseAPIClient({
       baseUrl: this.baseUrl,
-      username: publicKey,
-      password: secretKey,
-      xLangfusePublicKey: publicKey,
+      username: resolvedPublicKey,
+      password: resolvedSecretKey,
+      xLangfusePublicKey: resolvedPublicKey,
       xLangfuseSdkVersion: LANGFUSE_SDK_VERSION,
       xLangfuseSdkName: "javascript",
       environment: "", // noop as baseUrl is set
@@ -288,6 +329,7 @@ export class LangfuseClient {
 
     logger.debug("Initialized LangfuseClient with params:", {
       publicKey,
+      hasApiKey: Boolean(apiKey),
       baseUrl: this.baseUrl,
       timeoutSeconds,
     });
