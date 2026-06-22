@@ -8,8 +8,11 @@ import {
   ChatPromptClient,
   TextPromptClient,
   ChatMessageType,
-} from "@langfuse/client";
-import type { ChatMessage, ChatMessageWithPlaceholders } from "@langfuse/core";
+} from "@sea-traces/client";
+import type {
+  ChatMessage,
+  ChatMessageWithPlaceholders,
+} from "@sea-traces/core";
 import { nanoid } from "nanoid";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 

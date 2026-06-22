@@ -1,10 +1,10 @@
-import { LangfuseSpanProcessor } from "@langfuse/otel";
-import { LANGFUSE_TRACER_NAME } from "@langfuse/core";
+import { LangfuseSpanProcessor } from "@sea-traces/otel";
+import { LANGFUSE_TRACER_NAME } from "@sea-traces/core";
 import {
   setLangfuseTracerProvider,
   getLangfuseTracerProvider,
   getLangfuseTracer,
-} from "@langfuse/tracing";
+} from "@sea-traces/tracing";
 import { trace, context, SpanKind } from "@opentelemetry/api";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -31,6 +31,10 @@ describe("Tracer Provider Isolation Integration Tests", () => {
     // Setup isolated tracer provider
     isolatedMockExporter = new MockSpanExporter();
     const isolatedSpanProcessor = new LangfuseSpanProcessor({
+      apiKey: "sea-team-test",
+      baseUrl: "https://sea-traces.example.com",
+      publicKey: "pk-lf-test",
+      secretKey: "sk-lf-test",
       exporter: isolatedMockExporter,
       flushAt: 1,
       flushInterval: 0,
@@ -88,6 +92,10 @@ describe("Tracer Provider Isolation Integration Tests", () => {
       const firstProvider = new NodeTracerProvider({
         spanProcessors: [
           new LangfuseSpanProcessor({
+            apiKey: "sea-team-test",
+            baseUrl: "https://sea-traces.example.com",
+            publicKey: "pk-lf-test",
+            secretKey: "sk-lf-test",
             exporter: firstMockExporter,
             flushAt: 1,
             flushInterval: 0,
@@ -97,6 +105,10 @@ describe("Tracer Provider Isolation Integration Tests", () => {
       const secondProvider = new NodeTracerProvider({
         spanProcessors: [
           new LangfuseSpanProcessor({
+            apiKey: "sea-team-test",
+            baseUrl: "https://sea-traces.example.com",
+            publicKey: "pk-lf-test",
+            secretKey: "sk-lf-test",
             exporter: secondMockExporter,
             flushAt: 1,
             flushInterval: 0,

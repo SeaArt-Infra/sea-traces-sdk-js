@@ -2,7 +2,7 @@ import {
   LangfuseGeneration,
   startObservation,
   propagateAttributes,
-} from "@langfuse/tracing";
+} from "@sea-traces/tracing";
 import type OpenAI from "openai";
 
 import {

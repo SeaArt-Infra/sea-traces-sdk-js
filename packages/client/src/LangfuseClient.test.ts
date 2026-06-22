@@ -1,4 +1,7 @@
-import { base64Encode, clearSealangfuseCredentialsCache } from "@langfuse/core";
+import {
+  base64Encode,
+  clearSealangfuseCredentialsCache,
+} from "@sea-traces/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LangfuseClient } from "./LangfuseClient.js";
@@ -28,6 +31,7 @@ describe("LangfuseClient Sealangfuse credentials", () => {
     const client = new LangfuseClient({
       publicKey: "pk-lf-direct",
       secretKey: "sk-lf-direct",
+      apiKey: "sea-team-test",
       baseUrl: "https://langfuse.example.com",
     });
 
@@ -84,9 +88,58 @@ describe("LangfuseClient Sealangfuse credentials", () => {
     });
   });
 
-  it("requires baseUrl when apiKey is used", () => {
-    expect(() => new LangfuseClient({ apiKey: "sa-test" })).toThrow(
-      "LANGFUSE_BASE_URL or baseUrl is required",
+  it("requires apiKey or SEA_TEAM_KEY", () => {
+    expect(
+      () => new LangfuseClient({ baseUrl: "https://sea-traces.example.com" }),
+    ).toThrow("SEA_TEAM_KEY or apiKey is required");
+  });
+
+  it("requires baseUrl or SEA_TRACES_BASE_URL", () => {
+    expect(() => new LangfuseClient({ apiKey: "sea-team-test" })).toThrow(
+      "SEA_TRACES_BASE_URL or baseUrl is required",
     );
+  });
+
+  it("does not use legacy SEALANGFUSE_API_KEY and LANGFUSE_BASE_URL env vars", () => {
+    vi.stubEnv("SEALANGFUSE_API_KEY", "sa-legacy");
+    vi.stubEnv("LANGFUSE_BASE_URL", "https://legacy.example.com");
+
+    expect(() => new LangfuseClient()).toThrow(
+      "SEA_TEAM_KEY or apiKey is required",
+    );
+  });
+
+  it("uses SEA_TEAM_KEY and SEA_TRACES_BASE_URL env vars", async () => {
+    vi.stubEnv("SEA_TEAM_KEY", "sea-team-env");
+    vi.stubEnv("SEA_TRACES_BASE_URL", "https://sea-traces.example.com");
+
+    const fetchMock = vi.fn(async (url: URL | RequestInfo) => {
+      if (
+        String(url) ===
+        "https://sea-traces.example.com/api/public/sea-project-api-credentials?key=sea-team-env"
+      ) {
+        return new Response(
+          JSON.stringify({
+            publicKey: "pk-lf-env",
+            secretKey: "sk-lf-env",
+            baseUrl: "https://resolver-response.example.com",
+            status: "ACTIVE",
+          }),
+        );
+      }
+
+      expect(String(url)).toBe(
+        "https://sea-traces.example.com/api/public/projects",
+      );
+
+      return new Response(JSON.stringify({ data: [] }));
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new LangfuseClient();
+
+    await client.api.projects.get();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

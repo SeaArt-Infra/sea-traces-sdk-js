@@ -1,3 +1,4 @@
+import { ProxyTracerProvider, trace } from "@opentelemetry/api";
 import {
   DatasetItem,
   getGlobalLogger,
@@ -7,9 +8,8 @@ import {
   createExperimentItemId,
   LangfuseOtelSpanAttributes,
   LANGFUSE_SDK_EXPERIMENT_ENVIRONMENT,
-} from "@langfuse/core";
-import { startActiveObservation } from "@langfuse/tracing";
-import { ProxyTracerProvider, trace } from "@opentelemetry/api";
+} from "@sea-traces/core";
+import { startActiveObservation } from "@sea-traces/tracing";
 
 import { LangfuseClient } from "../LangfuseClient.js";
 
@@ -563,10 +563,10 @@ export class ExperimentManager {
    *        💭 Very close match with expected output
    *
    *    Dataset Item:
-   *    https://cloud.langfuse.com/project/123/datasets/456/items/789
+   *    https://your-sea-traces.example.com/project/123/datasets/456/items/789
    *
    *    Trace:
-   *    https://cloud.langfuse.com/project/123/traces/abc123
+   *    https://your-sea-traces.example.com/project/123/traces/abc123
    *
    * ──────────────────────────────────────────────────
    * 📊 Translation Quality Test - Testing model accuracy
@@ -584,7 +584,7 @@ export class ExperimentManager {
    *     💭 Good performance with room for improvement
    *
    * 🔗 Dataset Run:
-   *    https://cloud.langfuse.com/project/123/datasets/456/runs/def456
+   *    https://your-sea-traces.example.com/project/123/datasets/456/runs/def456
    * ```
    *
    * @internal

@@ -3,7 +3,7 @@ import {
   startActiveObservation,
   observe,
   propagateAttributes,
-} from "@langfuse/tracing";
+} from "@sea-traces/tracing";
 import { nanoid } from "nanoid";
 import { describe, it, beforeEach, afterEach } from "vitest";
 

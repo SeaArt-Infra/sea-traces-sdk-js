@@ -1,9 +1,4 @@
 import {
-  getGlobalLogger,
-  LangfuseOtelSpanAttributes,
-  setLangfuseTraceIdInBaggage,
-} from "@langfuse/core";
-import {
   trace,
   context,
   TimeInput,
@@ -12,6 +7,11 @@ import {
   Context,
   SpanContext,
 } from "@opentelemetry/api";
+import {
+  getGlobalLogger,
+  LangfuseOtelSpanAttributes,
+  setLangfuseTraceIdInBaggage,
+} from "@sea-traces/core";
 
 import {
   createObservationAttributes,
@@ -70,9 +70,9 @@ export {
 export {
   propagateAttributes,
   type PropagateAttributesParams,
-} from "@langfuse/core";
+} from "@sea-traces/core";
 
-export { LangfuseOtelSpanAttributes } from "@langfuse/core";
+export { LangfuseOtelSpanAttributes } from "@sea-traces/core";
 
 /**
  * Options for starting observations (spans, generations, events).
@@ -265,7 +265,7 @@ export function startObservation(
  *
  * @example
  * ```typescript
- * import { startObservation } from '@langfuse/tracing';
+ * import { startObservation } from '@sea-traces/tracing';
  *
  * // Span for general operations (default)
  * const span = startObservation('user-workflow', {
@@ -546,7 +546,7 @@ export function startActiveObservation<
  *
  * @example
  * ```typescript
- * import { startActiveObservation } from '@langfuse/tracing';
+ * import { startActiveObservation } from '@sea-traces/tracing';
  *
  * // Span for general operations (default)
  * const result = startActiveObservation('user-checkout', (span) => {
@@ -907,7 +907,7 @@ export function startActiveObservation<
  *
  * @example
  * ```typescript
- * import { setActiveTraceIO } from '@langfuse/tracing';
+ * import { setActiveTraceIO } from '@sea-traces/tracing';
  *
  * // Inside an active span context
  * setActiveTraceIO({
@@ -944,7 +944,7 @@ export function setActiveTraceIO(attributes: LangfuseTraceAttributes) {
  *
  * @example
  * ```typescript
- * import { setActiveTraceAsPublic, startActiveObservation } from '@langfuse/tracing';
+ * import { setActiveTraceAsPublic, startActiveObservation } from '@sea-traces/tracing';
  *
  * startActiveObservation('my-operation', () => {
  *   // Make this trace publicly accessible
@@ -1004,7 +1004,7 @@ export function setActiveTraceAsPublic() {
  *
  * @example
  * ```typescript
- * import { updateActiveObservation, startActiveObservation } from '@langfuse/tracing';
+ * import { updateActiveObservation, startActiveObservation } from '@sea-traces/tracing';
  *
  * // Update active span (default)
  * await startActiveObservation('data-processing', async (observation) => {
@@ -1213,7 +1213,7 @@ export interface ObserveOptions {
  *
  * @example
  * ```typescript
- * import { observe } from '@langfuse/tracing';
+ * import { observe } from '@sea-traces/tracing';
  *
  * // Basic function wrapping with automatic I/O capture
  * const processOrder = observe(

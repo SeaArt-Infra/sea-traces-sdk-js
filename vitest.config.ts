@@ -29,21 +29,23 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@langfuse/client": new URL(
+      "@sea-traces/client": new URL(
         "./packages/client/src/index.ts",
         import.meta.url,
       ).pathname,
-      "@langfuse/tracing": new URL(
+      "@sea-traces/tracing": new URL(
         "./packages/tracing/src/index.ts",
         import.meta.url,
       ).pathname,
-      "@langfuse/otel": new URL("./packages/otel/src/index.ts", import.meta.url)
-        .pathname,
-      "@langfuse/langchain": new URL(
+      "@sea-traces/otel": new URL(
+        "./packages/otel/src/index.ts",
+        import.meta.url,
+      ).pathname,
+      "@sea-traces/langchain": new URL(
         "./packages/langchain/src/index.ts",
         import.meta.url,
       ).pathname,
-      "@langfuse/openai": new URL(
+      "@sea-traces/openai": new URL(
         "./packages/openai/src/index.ts",
         import.meta.url,
       ).pathname,

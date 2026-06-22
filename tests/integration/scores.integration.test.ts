@@ -8,13 +8,13 @@ import {
   vi,
 } from "vitest";
 import { trace } from "@opentelemetry/api";
-import { ScoreManager } from "@langfuse/client";
+import { ScoreManager } from "@sea-traces/client";
 import {
   LangfuseAPIClient,
   IngestionEvent,
   resetGlobalLogger,
-} from "@langfuse/core";
-import { startObservation } from "@langfuse/tracing";
+} from "@sea-traces/core";
+import { startObservation } from "@sea-traces/tracing";
 import {
   setupTestEnvironment,
   teardownTestEnvironment,

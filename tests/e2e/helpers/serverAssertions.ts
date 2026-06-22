@@ -5,7 +5,7 @@ import {
   getEnv,
   TraceWithFullDetails,
   TraceWithDetails,
-} from "@langfuse/core";
+} from "@sea-traces/core";
 
 export class ServerAssertions {
   private baseUrl: string;

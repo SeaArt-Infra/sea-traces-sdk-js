@@ -7,7 +7,7 @@ import {
   CreateTextPromptRequest,
   CreateChatPromptRequest,
   PlaceholderMessage,
-} from "@langfuse/core";
+} from "@sea-traces/core";
 
 import { LangfusePromptCache } from "./promptCache.js";
 import {

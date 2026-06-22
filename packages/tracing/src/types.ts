@@ -1,4 +1,4 @@
-import { OpenAiUsage } from "@langfuse/core";
+import { OpenAiUsage } from "@sea-traces/core";
 
 /**
  * Types of observations that can be created in Langfuse.

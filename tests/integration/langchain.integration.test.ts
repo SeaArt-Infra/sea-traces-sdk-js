@@ -1,6 +1,6 @@
 import { DynamicTool } from "@langchain/core/tools";
-import { CallbackHandler } from "@langfuse/langchain";
-import { LangfuseOtelSpanAttributes } from "@langfuse/tracing";
+import { CallbackHandler } from "@sea-traces/langchain";
+import { LangfuseOtelSpanAttributes } from "@sea-traces/tracing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { SpanAssertions } from "./helpers/assertions.js";

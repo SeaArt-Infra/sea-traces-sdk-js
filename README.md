@@ -1,44 +1,52 @@
 <img width="2400" height="600" alt="hero-b" src="https://github.com/user-attachments/assets/0d06e77e-6f4a-4ae3-8aee-7d3463a6f98c" />
 
-# langfuse-js
+# Sea Traces JS/TS SDK
 
 [![MIT License](https://img.shields.io/badge/License-MIT-red.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![CI test status](https://img.shields.io/github/actions/workflow/status/langfuse/langfuse-js/ci.yml?style=flat-square&label=All%20tests)](https://github.com/langfuse/langfuse-js/actions/workflows/ci.yml?query=branch%3Amain)
-[![GitHub Repo stars](https://img.shields.io/github/stars/langfuse/langfuse?style=flat-square&logo=GitHub&label=langfuse%2Flangfuse)](https://github.com/langfuse/langfuse)
-[![Discord](https://img.shields.io/discord/1111061815649124414?style=flat-square&logo=Discord&logoColor=white&label=Discord&color=%23434EE4)](https://discord.gg/7NXusRtqYU)
-[![YC W23](https://img.shields.io/badge/Y%20Combinator-W23-orange?style=flat-square)](https://www.ycombinator.com/companies/langfuse)
 
-Modular mono repo for the Langfuse JS/TS client libraries.
+Modular mono repo for the Sea Traces JavaScript and TypeScript SDK packages. The SDK keeps the existing Langfuse tracing/export pipeline internally while exposing Sea Traces package names and configuration.
 
 ## Packages
 
-> [!IMPORTANT]
-> The SDK was rewritten in v5 and released in March 2026. Refer to the [v5 migration guide](https://langfuse.com/docs/observability/sdk/upgrade-path/js-v4-to-v5) for instructions on updating your code.
+| Package                                       | Description                                                 | Environments |
+| --------------------------------------------- | ----------------------------------------------------------- | ------------ |
+| [@sea-traces/client](./packages/client)       | Sea Traces API client for universal JavaScript environments | Universal JS |
+| [@sea-traces/tracing](./packages/tracing)     | Sea Traces instrumentation methods based on OpenTelemetry   | Node.js 20+  |
+| [@sea-traces/otel](./packages/otel)           | Sea Traces OpenTelemetry export helpers                     | Node.js 20+  |
+| [@sea-traces/openai](./packages/openai)       | Sea Traces integration for OpenAI SDK                       | Universal JS |
+| [@sea-traces/langchain](./packages/langchain) | Sea Traces integration for LangChain                        | Universal JS |
 
-| Package                                     | NPM                                                                                                               | Description                                               | Environments |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------ |
-| [@langfuse/client](./packages/client)       | [![NPM](https://img.shields.io/npm/v/@langfuse/client.svg)](https://www.npmjs.com/package/@langfuse/client)       | Langfuse API client for universal JavaScript environments | Universal JS |
-| [@langfuse/tracing](./packages/tracing)     | [![NPM](https://img.shields.io/npm/v/@langfuse/tracing.svg)](https://www.npmjs.com/package/@langfuse/tracing)     | Langfuse instrumentation methods based on OpenTelemetry   | Node.js 20+  |
-| [@langfuse/otel](./packages/otel)           | [![NPM](https://img.shields.io/npm/v/@langfuse/otel.svg)](https://www.npmjs.com/package/@langfuse/otel)           | Langfuse OpenTelemetry export helpers                     | Node.js 20+  |
-| [@langfuse/openai](./packages/openai)       | [![NPM](https://img.shields.io/npm/v/@langfuse/openai.svg)](https://www.npmjs.com/package/@langfuse/openai)       | Langfuse integration for OpenAI SDK                       | Universal JS |
-| [@langfuse/langchain](./packages/langchain) | [![NPM](https://img.shields.io/npm/v/@langfuse/langchain.svg)](https://www.npmjs.com/package/@langfuse/langchain) | Langfuse integration for LangChain                        | Universal JS |
+## Configuration
 
-## Documentation
+The SDK requires both values at initialization time:
 
-- [Docs](https://langfuse.com/docs/observability/sdk/typescript/overview)
-- [Reference](https://langfuse-js-git-main-langfuse.vercel.app/)
+```bash
+SEA_TEAM_KEY=sea-team-key
+SEA_TRACES_BASE_URL=https://your-sea-traces.example.com
+```
+
+Equivalent constructor fields are supported:
+
+```ts
+import { LangfuseClient } from "@sea-traces/client";
+
+const client = new LangfuseClient({
+  apiKey: "sea-team-key",
+  baseUrl: "https://your-sea-traces.example.com",
+});
+```
+
+Legacy `SEALANGFUSE_API_KEY`, `LANGFUSE_BASE_URL`, and Langfuse Cloud defaults do not enable the renamed SDK by themselves.
 
 ## Development
 
-This is a monorepo managed with pnpm. See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed development instructions.
-
-Quick start:
+This is a monorepo managed with pnpm. See [CONTRIBUTING.md](./CONTRIBUTING.md) for development instructions.
 
 ```bash
-pnpm install    # Install dependencies
-pnpm build      # Build all packages
-pnpm test       # Run tests
-pnpm ci         # Run full CI suite
+pnpm install
+pnpm build
+pnpm test
+pnpm ci
 ```
 
 ## License

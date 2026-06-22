@@ -128,15 +128,15 @@ importers:
 
   packages/client:
     dependencies:
-      '@langfuse/core':
-        specifier: workspace:^
-        version: link:../core
-      '@langfuse/tracing':
-        specifier: workspace:^
-        version: link:../tracing
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
+      '@sea-traces/core':
+        specifier: workspace:^
+        version: link:../core
+      '@sea-traces/tracing':
+        specifier: workspace:^
+        version: link:../tracing
       mustache:
         specifier: ^4.2.0
         version: 4.2.0
@@ -160,22 +160,22 @@ importers:
       '@langchain/core':
         specifier: '>=0.3.8'
         version: 1.1.8(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.217.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.0))(openai@6.22.0(ws@8.20.0)(zod@3.25.76))
-      '@langfuse/core':
-        specifier: workspace:^
-        version: link:../core
-      '@langfuse/tracing':
-        specifier: workspace:^
-        version: link:../tracing
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
+      '@sea-traces/core':
+        specifier: workspace:^
+        version: link:../core
+      '@sea-traces/tracing':
+        specifier: workspace:^
+        version: link:../tracing
 
   packages/openai:
     dependencies:
-      '@langfuse/core':
+      '@sea-traces/core':
         specifier: workspace:^
         version: link:../core
-      '@langfuse/tracing':
+      '@sea-traces/tracing':
         specifier: workspace:^
         version: link:../tracing
     devDependencies:
@@ -185,9 +185,6 @@ importers:
 
   packages/otel:
     dependencies:
-      '@langfuse/core':
-        specifier: workspace:^
-        version: link:../core
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -200,15 +197,18 @@ importers:
       '@opentelemetry/sdk-trace-base':
         specifier: ^2.0.1
         version: 2.0.1(@opentelemetry/api@1.9.0)
+      '@sea-traces/core':
+        specifier: workspace:^
+        version: link:../core
 
   packages/tracing:
     dependencies:
-      '@langfuse/core':
-        specifier: workspace:^
-        version: link:../core
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
+      '@sea-traces/core':
+        specifier: workspace:^
+        version: link:../core
 
 packages:
 

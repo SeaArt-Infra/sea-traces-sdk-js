@@ -1,7 +1,7 @@
 {
-  "name": "@langfuse/openai",
+  "name": "@sea-traces/openai",
   "version": "5.5.0-beta.2",
-  "description": "Langfuse integration for OpenAI SDK",
+  "description": "Sea Traces integration for OpenAI SDK",
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -22,19 +22,19 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "clean": "rm -rf dist"
   },
-  "author": "Langfuse",
+  "author": "Sea Traces",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/langfuse/langfuse-js.git",
+    "url": "https://github.com/seaart-ai/sea-traces-js.git",
     "directory": "packages/openai"
   },
   "files": [
     "dist"
   ],
   "dependencies": {
-    "@langfuse/core": "workspace:^",
-    "@langfuse/tracing": "workspace:^"
+    "@sea-traces/core": "workspace:^",
+    "@sea-traces/tracing": "workspace:^"
   },
   "devDependencies": {
     "openai": "^5.0.0"

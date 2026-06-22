@@ -1,4 +1,4 @@
-import { getGlobalLogger } from "@langfuse/core";
+import { getGlobalLogger } from "@sea-traces/core";
 
 import type { LangfusePromptClient } from "./promptClients.js";
 

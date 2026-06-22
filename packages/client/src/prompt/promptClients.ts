@@ -3,7 +3,7 @@ import {
   ChatMessage,
   BasePrompt,
   ChatMessageWithPlaceholders,
-} from "@langfuse/core";
+} from "@sea-traces/core";
 import mustache from "mustache";
 
 import {

@@ -1,3 +1,4 @@
+import { Span, trace } from "@opentelemetry/api";
 import {
   LangfuseAPIClient,
   IngestionEvent,
@@ -8,8 +9,7 @@ import {
   LogLevel,
   safeSetTimeout,
   IngestionResponse,
-} from "@langfuse/core";
-import { Span, trace } from "@opentelemetry/api";
+} from "@sea-traces/core";
 
 const MAX_QUEUE_SIZE = 100_000; // prevent memory leaks
 const MAX_BATCH_SIZE = 100;
@@ -121,7 +121,7 @@ export class ScoreManager {
    *
    * @example
    * ```typescript
-   * import { startSpan } from '@langfuse/tracing';
+   * import { startSpan } from '@sea-traces/tracing';
    *
    * const span = startSpan({ name: "my-operation" });
    * langfuse.score.observation(
@@ -157,7 +157,7 @@ export class ScoreManager {
    *
    * @example
    * ```typescript
-   * import { startSpan } from '@langfuse/tracing';
+   * import { startSpan } from '@sea-traces/tracing';
    *
    * const span = startSpan({ name: "my-operation" });
    * langfuse.score.trace(
@@ -192,7 +192,7 @@ export class ScoreManager {
    *
    * @example
    * ```typescript
-   * import { startActiveSpan } from '@langfuse/tracing';
+   * import { startActiveSpan } from '@sea-traces/tracing';
    *
    * startActiveSpan({ name: "my-operation" }, (span) => {
    *   // Inside the active span
@@ -236,7 +236,7 @@ export class ScoreManager {
    *
    * @example
    * ```typescript
-   * import { startActiveSpan } from '@langfuse/tracing';
+   * import { startActiveSpan } from '@sea-traces/tracing';
    *
    * startActiveSpan({ name: "my-operation" }, (span) => {
    *   // Inside the active span

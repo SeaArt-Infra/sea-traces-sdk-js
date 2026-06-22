@@ -13,12 +13,12 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@langfuse/client": ["../packages/client/dist/index.d.ts"],
-      "@langfuse/core": ["../packages/core/src/index.ts"],
-      "@langfuse/tracing": ["../packages/tracing/src/index.ts"],
-      "@langfuse/otel": ["../packages/otel/src/index.ts"],
-      "@langfuse/langchain": ["../packages/langchain/src/index.ts"],
-      "@langfuse/openai": ["../packages/openai/src/index.ts"]
+      "@sea-traces/client": ["../packages/client/dist/index.d.ts"],
+      "@sea-traces/core": ["../packages/core/src/index.ts"],
+      "@sea-traces/tracing": ["../packages/tracing/src/index.ts"],
+      "@sea-traces/otel": ["../packages/otel/src/index.ts"],
+      "@sea-traces/langchain": ["../packages/langchain/src/index.ts"],
+      "@sea-traces/openai": ["../packages/openai/src/index.ts"]
     },
     "types": ["vitest/globals", "@types/node"]
   },

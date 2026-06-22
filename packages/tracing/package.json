@@ -1,17 +1,17 @@
 {
-  "name": "@langfuse/tracing",
+  "name": "@sea-traces/tracing",
   "version": "5.5.0-beta.2",
-  "author": "Langfuse",
+  "author": "Sea Traces",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/langfuse/langfuse-js.git",
+    "url": "https://github.com/seaart-ai/sea-traces-js.git",
     "directory": "packages/tracing"
   },
   "engines": {
     "node": ">=20"
   },
-  "description": "Langfuse instrumentation methods based on OpenTelemetry",
+  "description": "Sea Traces instrumentation methods based on OpenTelemetry",
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -36,7 +36,7 @@
     "dist"
   ],
   "dependencies": {
-    "@langfuse/core": "workspace:^"
+    "@sea-traces/core": "workspace:^"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0"

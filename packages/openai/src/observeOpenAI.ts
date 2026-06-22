@@ -20,7 +20,7 @@ import type { LangfuseConfig } from "./types.js";
  * @example
  * ```typescript
  * import OpenAI from 'openai';
- * import { observeOpenAI } from '@langfuse/openai';
+ * import { observeOpenAI } from '@sea-traces/openai';
  *
  * const openai = observeOpenAI(new OpenAI({
  *   apiKey: process.env.OPENAI_API_KEY,

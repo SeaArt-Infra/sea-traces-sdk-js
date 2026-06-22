@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 
-import { LangfuseClient } from "@langfuse/client";
-import { observeOpenAI } from "@langfuse/openai";
-import { startActiveObservation } from "@langfuse/tracing";
+import { LangfuseClient } from "@sea-traces/client";
+import { observeOpenAI } from "@sea-traces/openai";
+import { startActiveObservation } from "@sea-traces/tracing";
 import { nanoid } from "nanoid";
 import { OpenAI } from "openai";
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

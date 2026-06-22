@@ -1,6 +1,6 @@
-import { LangfuseClient } from "@langfuse/client";
-import { resetGlobalLogger, LangfuseMedia } from "@langfuse/core";
-import { startObservation } from "@langfuse/tracing";
+import { LangfuseClient } from "@sea-traces/client";
+import { resetGlobalLogger, LangfuseMedia } from "@sea-traces/core";
+import { startObservation } from "@sea-traces/tracing";
 import { nanoid } from "nanoid";
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
 

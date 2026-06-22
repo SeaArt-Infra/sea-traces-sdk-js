@@ -1,6 +1,8 @@
 type LangfuseEnvVar =
   | "LANGFUSE_PUBLIC_KEY"
   | "LANGFUSE_SECRET_KEY"
+  | "SEA_TEAM_KEY"
+  | "SEA_TRACES_BASE_URL"
   | "LANGFUSE_BASE_URL"
   | "LANGFUSE_BASEURL" // legacy v2
   | "LANGFUSE_TIMEOUT"
@@ -21,6 +23,12 @@ export function getEnv(key: LangfuseEnvVar): string | undefined {
   }
 
   return;
+}
+
+export function getRequiredEnv(key: LangfuseEnvVar): string | undefined {
+  const value = getEnv(key)?.trim();
+
+  return value ? value : undefined;
 }
 
 // https://stackoverflow.com/a/8809472

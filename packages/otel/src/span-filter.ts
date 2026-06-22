@@ -1,5 +1,5 @@
-import { LANGFUSE_TRACER_NAME } from "@langfuse/core";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
+import { LANGFUSE_TRACER_NAME } from "@sea-traces/core";
 
 export const KNOWN_LLM_INSTRUMENTATION_SCOPE_PREFIXES = [
   LANGFUSE_TRACER_NAME,

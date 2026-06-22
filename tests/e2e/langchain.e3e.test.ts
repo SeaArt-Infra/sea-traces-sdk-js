@@ -2,10 +2,10 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { DynamicTool } from "@langchain/core/tools";
 import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
-import { LangfuseClient } from "@langfuse/client";
-import { configureGlobalLogger } from "@langfuse/core";
-import { CallbackHandler } from "@langfuse/langchain";
-import { startActiveObservation } from "@langfuse/tracing";
+import { LangfuseClient } from "@sea-traces/client";
+import { configureGlobalLogger } from "@sea-traces/core";
+import { CallbackHandler } from "@sea-traces/langchain";
+import { startActiveObservation } from "@sea-traces/tracing";
 import { nanoid } from "nanoid";
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 

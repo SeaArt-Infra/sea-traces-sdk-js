@@ -1,9 +1,3 @@
-import {
-  LANGFUSE_TRACER_NAME,
-  LANGFUSE_TRACE_ID_BAGGAGE_KEY,
-  LangfuseOtelSpanAttributes,
-  getPropagatedAttributesFromContext,
-} from "@langfuse/core";
 import { propagation, ROOT_CONTEXT, type Context } from "@opentelemetry/api";
 import { ExportResultCode } from "@opentelemetry/core";
 import type {
@@ -11,6 +5,12 @@ import type {
   Span,
   SpanExporter,
 } from "@opentelemetry/sdk-trace-base";
+import {
+  LANGFUSE_TRACER_NAME,
+  LANGFUSE_TRACE_ID_BAGGAGE_KEY,
+  LangfuseOtelSpanAttributes,
+  getPropagatedAttributesFromContext,
+} from "@sea-traces/core";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { LangfuseSpanProcessor } from "./span-processor.js";
@@ -102,7 +102,13 @@ describe("LangfuseSpanProcessor app-root marking", () => {
 
   beforeEach(() => {
     spanIdCounter = 0;
-    processor = new LangfuseSpanProcessor({ exporter: noopExporter });
+    processor = new LangfuseSpanProcessor({
+      apiKey: "sea-team-test",
+      baseUrl: "https://sea-traces.example.com",
+      publicKey: "pk-lf-test",
+      secretKey: "sk-lf-test",
+      exporter: noopExporter,
+    });
   });
 
   it("marks an exported child whose immediate parent is filtered", () => {
@@ -207,6 +213,10 @@ describe("LangfuseSpanProcessor app-root marking", () => {
 
   it("never marks spans rejected by a custom shouldExportSpan filter", () => {
     const rejectAll = new LangfuseSpanProcessor({
+      apiKey: "sea-team-test",
+      baseUrl: "https://sea-traces.example.com",
+      publicKey: "pk-lf-test",
+      secretKey: "sk-lf-test",
       exporter: noopExporter,
       shouldExportSpan: () => false,
     });
@@ -344,6 +354,10 @@ describe("LangfuseSpanProcessor app-root marking", () => {
   it("keeps the start-time marker even when the end-time filter rejects the span", async () => {
     let calls = 0;
     const flipFilter = new LangfuseSpanProcessor({
+      apiKey: "sea-team-test",
+      baseUrl: "https://sea-traces.example.com",
+      publicKey: "pk-lf-test",
+      secretKey: "sk-lf-test",
       exporter: noopExporter,
       shouldExportSpan: () => {
         calls += 1;

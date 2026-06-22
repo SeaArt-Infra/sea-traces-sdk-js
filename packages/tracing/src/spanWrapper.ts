@@ -1,5 +1,5 @@
-import { LangfuseOtelSpanAttributes } from "@langfuse/core";
 import { Span, TimeInput } from "@opentelemetry/api";
+import { LangfuseOtelSpanAttributes } from "@sea-traces/core";
 
 import {
   createObservationAttributes,

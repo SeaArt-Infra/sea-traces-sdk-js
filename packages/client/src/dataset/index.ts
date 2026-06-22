@@ -1,5 +1,5 @@
-import { Dataset, DatasetRunItem, DatasetItem } from "@langfuse/core";
 import { Span } from "@opentelemetry/api";
+import { Dataset, DatasetRunItem, DatasetItem } from "@sea-traces/core";
 
 import { ExperimentResult, ExperimentParams } from "../experiment/types.js";
 import { LangfuseClient } from "../LangfuseClient.js";

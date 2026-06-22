@@ -5,12 +5,12 @@
  * item metadata) automatically propagates to all child spans within an experiment run.
  */
 
-import { LangfuseClient } from "@langfuse/client";
+import { LangfuseClient } from "@sea-traces/client";
 import {
   LangfuseOtelSpanAttributes,
   LANGFUSE_SDK_EXPERIMENT_ENVIRONMENT,
-} from "@langfuse/core";
-import { startObservation, startActiveObservation } from "@langfuse/tracing";
+} from "@sea-traces/core";
+import { startObservation, startActiveObservation } from "@sea-traces/tracing";
 import { trace as otelTrace } from "@opentelemetry/api";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
@@ -28,6 +28,7 @@ describe("Experiment Attribute Propagation", () => {
   beforeEach(async () => {
     testEnv = await setupTestEnvironment();
     langfuse = new LangfuseClient({
+      apiKey: "sea-team-test",
       publicKey: "test-pk",
       secretKey: "test-sk",
       baseUrl: "http://localhost:3000",

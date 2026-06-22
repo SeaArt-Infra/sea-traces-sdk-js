@@ -2,9 +2,9 @@ import {
   LogLevel,
   configureGlobalLogger,
   resetGlobalLogger,
-} from "@langfuse/core";
+} from "@sea-traces/core";
 import { trace } from "@opentelemetry/api";
-import { startObservation } from "@langfuse/tracing";
+import { startObservation } from "@sea-traces/tracing";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { SpanAssertions } from "./helpers/assertions.js";

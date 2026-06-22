@@ -4,7 +4,7 @@ import {
   getGlobalLogger,
   getEnv,
   resolveSealangfuseCredentials,
-} from "@langfuse/core";
+} from "@sea-traces/core";
 
 import { DatasetManager } from "./dataset/index.js";
 import { ExperimentManager } from "./experiment/ExperimentManager.js";
@@ -31,16 +31,14 @@ export interface LangfuseClientParams {
   secretKey?: string;
 
   /**
-   * Sealangfuse API key used to resolve Langfuse project credentials.
-   * Can also be provided via SEALANGFUSE_API_KEY environment variable.
+   * Required Sea Traces team key used to resolve Langfuse project credentials.
+   * Can also be provided via SEA_TEAM_KEY environment variable.
    */
   apiKey?: string;
 
   /**
-   * Base URL of the Langfuse instance to connect to.
-   * Can also be provided via LANGFUSE_BASE_URL environment variable.
-   *
-   * @defaultValue "https://cloud.langfuse.com"
+   * Required Sea Traces base URL.
+   * Can also be provided via SEA_TRACES_BASE_URL environment variable.
    */
   baseUrl?: string;
 
@@ -65,9 +63,9 @@ export interface LangfuseClientParams {
 }
 
 /**
- * Main client for interacting with the Langfuse API.
+ * Main client for interacting with the Sea Traces API.
  *
- * The LangfuseClient provides access to all Langfuse functionality including:
+ * The LangfuseClient provides access to Sea Traces functionality including:
  * - Prompt management and retrieval
  * - Dataset operations
  * - Score creation and management
@@ -78,9 +76,8 @@ export interface LangfuseClientParams {
  * ```typescript
  * // Initialize with explicit credentials
  * const langfuse = new LangfuseClient({
- *   publicKey: "pk_...",
- *   secretKey: "sk_...",
- *   baseUrl: "https://cloud.langfuse.com"
+ *   apiKey: "sea-team-key",
+ *   baseUrl: "https://your-sea-traces.example.com"
  * });
  *
  * // Or use environment variables
@@ -93,6 +90,12 @@ export interface LangfuseClientParams {
  *
  * @public
  */
+function getRequiredConfig(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : undefined;
+}
+
 export class LangfuseClient {
   /**
    * Direct access to the underlying Langfuse API client.
@@ -132,7 +135,10 @@ export class LangfuseClient {
    *
    * @example Basic experiment execution
    * ```typescript
-   * const langfuse = new LangfuseClient();
+   * const langfuse = new LangfuseClient({
+   *   apiKey: "sea-team-key",
+   *   baseUrl: "https://your-sea-traces.example.com"
+   * });
    *
    * const result = await langfuse.experiment.run({
    *   name: "Model Evaluation",
@@ -249,18 +255,18 @@ export class LangfuseClient {
    *
    * @param params - Configuration parameters. If not provided, will use environment variables.
    *
-   * @throws Will log warnings if required credentials are not provided
+   * @throws When apiKey/SEA_TEAM_KEY or baseUrl/SEA_TRACES_BASE_URL is missing.
    *
    * @example
    * ```typescript
    * // With explicit configuration
    * const client = new LangfuseClient({
-   *   publicKey: "pk_...",
-   *   secretKey: "sk_...",
-   *   baseUrl: "https://your-instance.langfuse.com"
+   *   apiKey: "sea-team-key",
+   *   baseUrl: "https://your-sea-traces.example.com"
    * });
    *
    * // Using environment variables
+   * // SEA_TEAM_KEY and SEA_TRACES_BASE_URL must both be set.
    * const client = new LangfuseClient();
    * ```
    */
@@ -269,19 +275,20 @@ export class LangfuseClient {
 
     const publicKey = params?.publicKey ?? getEnv("LANGFUSE_PUBLIC_KEY");
     const secretKey = params?.secretKey ?? getEnv("LANGFUSE_SECRET_KEY");
-    const apiKey = params?.apiKey ?? getEnv("SEALANGFUSE_API_KEY");
-    const configuredBaseUrl =
-      params?.baseUrl ??
-      getEnv("LANGFUSE_BASE_URL") ??
-      getEnv("LANGFUSE_BASEURL"); // legacy v2
+    const apiKey = getRequiredConfig(params?.apiKey ?? getEnv("SEA_TEAM_KEY"));
+    const configuredBaseUrl = getRequiredConfig(
+      params?.baseUrl ?? getEnv("SEA_TRACES_BASE_URL"),
+    );
 
-    if (!configuredBaseUrl && apiKey && (!publicKey || !secretKey)) {
-      throw new Error(
-        "LANGFUSE_BASE_URL or baseUrl is required when using SEALANGFUSE_API_KEY or apiKey.",
-      );
+    if (!apiKey) {
+      throw new Error("SEA_TEAM_KEY or apiKey is required.");
     }
 
-    this.baseUrl = configuredBaseUrl ?? "https://cloud.langfuse.com";
+    if (!configuredBaseUrl) {
+      throw new Error("SEA_TRACES_BASE_URL or baseUrl is required.");
+    }
+
+    this.baseUrl = configuredBaseUrl;
 
     const timeoutSeconds =
       params?.timeout ?? Number(getEnv("LANGFUSE_TIMEOUT") ?? 5);
@@ -289,14 +296,12 @@ export class LangfuseClient {
     const resolvedCredentials =
       publicKey && secretKey
         ? undefined
-        : apiKey
-          ? resolveSealangfuseCredentials({
-              apiKey,
-              baseUrl: this.baseUrl,
-              credentialsUrl: params?.credentialsUrl,
-              timeoutSeconds,
-            })
-          : undefined;
+        : resolveSealangfuseCredentials({
+            apiKey,
+            baseUrl: this.baseUrl,
+            credentialsUrl: params?.credentialsUrl,
+            timeoutSeconds,
+          });
 
     const resolvedPublicKey =
       publicKey ??
@@ -304,17 +309,6 @@ export class LangfuseClient {
     const resolvedSecretKey =
       secretKey ??
       (() => resolvedCredentials?.then((value) => value.secretKey));
-
-    if (!publicKey && !apiKey) {
-      logger.warn(
-        "No public key provided in constructor or as LANGFUSE_PUBLIC_KEY env var and no apiKey/SEALANGFUSE_API_KEY provided. Client operations will fail.",
-      );
-    }
-    if (!secretKey && !apiKey) {
-      logger.warn(
-        "No secret key provided in constructor or as LANGFUSE_SECRET_KEY env var and no apiKey/SEALANGFUSE_API_KEY provided. Client operations will fail.",
-      );
-    }
 
     this.api = new LangfuseAPIClient({
       baseUrl: this.baseUrl,
@@ -329,7 +323,7 @@ export class LangfuseClient {
 
     logger.debug("Initialized LangfuseClient with params:", {
       publicKey,
-      hasApiKey: Boolean(apiKey),
+      hasApiKey: true,
       baseUrl: this.baseUrl,
       timeoutSeconds,
     });

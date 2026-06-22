@@ -1,3 +1,14 @@
+import { Context } from "@opentelemetry/api";
+import { ExportResultCode, hrTimeToMilliseconds } from "@opentelemetry/core";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import {
+  Span,
+  BatchSpanProcessor,
+  SimpleSpanProcessor,
+  SpanExporter,
+  ReadableSpan,
+  SpanProcessor,
+} from "@opentelemetry/sdk-trace-base";
 import {
   Logger,
   LogLevel,
@@ -11,18 +22,7 @@ import {
   getPropagatedAttributesFromContext,
   resolveSealangfuseCredentials,
   type SealangfuseCredentials,
-} from "@langfuse/core";
-import { Context } from "@opentelemetry/api";
-import { ExportResultCode, hrTimeToMilliseconds } from "@opentelemetry/core";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import {
-  Span,
-  BatchSpanProcessor,
-  SimpleSpanProcessor,
-  SpanExporter,
-  ReadableSpan,
-  SpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
+} from "@sea-traces/core";
 
 import { MediaService } from "./MediaService.js";
 import { isDefaultExportSpan } from "./span-filter.js";
@@ -94,14 +94,13 @@ export interface LangfuseSpanProcessorParams {
   secretKey?: string;
 
   /**
-   * Sealangfuse API key used to resolve Langfuse project credentials.
-   * Can also be set via SEALANGFUSE_API_KEY environment variable.
+   * Required Sea Traces team key used to resolve Langfuse project credentials.
+   * Can also be set via SEA_TEAM_KEY environment variable.
    */
   apiKey?: string;
 
   /**
-   * Langfuse instance base URL. Can also be set via LANGFUSE_BASE_URL environment variable.
-   * @defaultValue "https://cloud.langfuse.com"
+   * Required Sea Traces base URL. Can also be set via SEA_TRACES_BASE_URL environment variable.
    */
   baseUrl?: string;
 
@@ -164,6 +163,12 @@ export interface LangfuseSpanProcessorParams {
    * @defaultValue "batched"
    */
   exportMode?: "immediate" | "batched";
+}
+
+function getRequiredConfig(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : undefined;
 }
 
 class LazySealangfuseOTLPTraceExporter implements SpanExporter {
@@ -248,14 +253,13 @@ class LazySealangfuseOTLPTraceExporter implements SpanExporter {
  * @example
  * ```typescript
  * import { NodeSDK } from '@opentelemetry/sdk-node';
- * import { LangfuseSpanProcessor } from '@langfuse/otel';
+ * import { LangfuseSpanProcessor } from '@sea-traces/otel';
  *
  * const sdk = new NodeSDK({
  *   spanProcessors: [
  *     new LangfuseSpanProcessor({
- *       publicKey: 'pk_...',
- *       secretKey: 'sk_...',
- *       baseUrl: 'https://cloud.langfuse.com',
+ *       apiKey: 'sea-team-key',
+ *       baseUrl: 'https://your-sea-traces.example.com',
  *       environment: 'production',
  *       mask: ({ data }) => {
  *         // Mask sensitive data
@@ -292,8 +296,8 @@ export class LangfuseSpanProcessor implements SpanProcessor {
    * @example
    * ```typescript
    * const processor = new LangfuseSpanProcessor({
-   *   publicKey: 'pk_...',
-   *   secretKey: 'sk_...',
+   *   apiKey: 'sea-team-key',
+   *   baseUrl: 'https://your-sea-traces.example.com',
    *   environment: 'staging',
    *   flushAt: 10,
    *   flushInterval: 2,
@@ -316,19 +320,18 @@ export class LangfuseSpanProcessor implements SpanProcessor {
 
     const publicKey = params?.publicKey ?? getEnv("LANGFUSE_PUBLIC_KEY");
     const secretKey = params?.secretKey ?? getEnv("LANGFUSE_SECRET_KEY");
-    const apiKey = params?.apiKey ?? getEnv("SEALANGFUSE_API_KEY");
-    let baseUrl =
-      params?.baseUrl ??
-      getEnv("LANGFUSE_BASE_URL") ??
-      getEnv("LANGFUSE_BASEURL"); // legacy v2
+    const apiKey = getRequiredConfig(params?.apiKey ?? getEnv("SEA_TEAM_KEY"));
+    const baseUrl = getRequiredConfig(
+      params?.baseUrl ?? getEnv("SEA_TRACES_BASE_URL"),
+    );
 
-    if (!baseUrl && apiKey && (!publicKey || !secretKey)) {
-      throw new Error(
-        "LANGFUSE_BASE_URL or baseUrl is required when using SEALANGFUSE_API_KEY or apiKey.",
-      );
+    if (!apiKey) {
+      throw new Error("SEA_TEAM_KEY or apiKey is required.");
     }
 
-    baseUrl = baseUrl ?? "https://cloud.langfuse.com";
+    if (!baseUrl) {
+      throw new Error("SEA_TRACES_BASE_URL or baseUrl is required.");
+    }
 
     const flushAt = params?.flushAt ?? getEnv("LANGFUSE_FLUSH_AT");
     const flushIntervalSeconds =
@@ -340,14 +343,12 @@ export class LangfuseSpanProcessor implements SpanProcessor {
     const resolvedCredentials =
       publicKey && secretKey
         ? undefined
-        : apiKey
-          ? resolveSealangfuseCredentials({
-              apiKey,
-              baseUrl,
-              credentialsUrl: params?.credentialsUrl,
-              timeoutSeconds,
-            })
-          : undefined;
+        : resolveSealangfuseCredentials({
+            apiKey,
+            baseUrl,
+            credentialsUrl: params?.credentialsUrl,
+            timeoutSeconds,
+          });
 
     const resolvedPublicKey =
       publicKey ??
@@ -355,17 +356,6 @@ export class LangfuseSpanProcessor implements SpanProcessor {
     const resolvedSecretKey =
       secretKey ??
       (() => resolvedCredentials?.then((value) => value.secretKey));
-
-    if (!params?.exporter && !publicKey && !apiKey) {
-      logger.warn(
-        "No exporter configured, no public key provided in constructor or as LANGFUSE_PUBLIC_KEY env var, and no apiKey/SEALANGFUSE_API_KEY provided. Span exports will fail.",
-      );
-    }
-    if (!params?.exporter && !secretKey && !apiKey) {
-      logger.warn(
-        "No exporter configured, no secret key provided in constructor or as LANGFUSE_SECRET_KEY env var, and no apiKey/SEALANGFUSE_API_KEY provided. Span exports will fail.",
-      );
-    }
 
     const exporter =
       params?.exporter ??
@@ -422,7 +412,7 @@ export class LangfuseSpanProcessor implements SpanProcessor {
 
     logger.debug("Initialized LangfuseSpanProcessor with params:", {
       publicKey,
-      hasApiKey: Boolean(apiKey),
+      hasApiKey: true,
       baseUrl,
       environment: this.environment,
       release: this.release,

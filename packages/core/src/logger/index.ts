@@ -304,7 +304,7 @@ export const resetGlobalLogger = (): void => {
  *
  * @example
  * ```typescript
- * import { logger } from '@langfuse/core';
+ * import { logger } from '@sea-traces/core';
  *
  * logger.getInstance().info('Quick logging');
  * ```

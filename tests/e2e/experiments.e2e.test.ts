@@ -4,8 +4,8 @@ import {
   LangfuseClient,
   RunEvaluator,
   createEvaluatorFromAutoevals,
-} from "@langfuse/client";
-import { observeOpenAI } from "@langfuse/openai";
+} from "@sea-traces/client";
+import { observeOpenAI } from "@sea-traces/openai";
 import { Factuality, Levenshtein } from "autoevals";
 import { nanoid } from "nanoid";
 import OpenAI from "openai";

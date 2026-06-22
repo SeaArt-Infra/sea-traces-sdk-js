@@ -1,5 +1,5 @@
-import { LangfuseOtelSpanAttributes } from "@langfuse/core";
 import { type Attributes } from "@opentelemetry/api";
+import { LangfuseOtelSpanAttributes } from "@sea-traces/core";
 
 import {
   LangfuseObservationAttributes,

@@ -19,7 +19,7 @@ import { Evaluator } from "./types.js";
  * @example Basic usage with AutoEvals
  * ```typescript
  * import { Factuality, Levenshtein } from 'autoevals';
- * import { createEvaluatorFromAutoevals } from '@langfuse/client';
+ * import { createEvaluatorFromAutoevals } from '@sea-traces/client';
  *
  * const factualityEvaluator = createEvaluatorFromAutoevals(Factuality);
  * const levenshteinEvaluator = createEvaluatorFromAutoevals(Levenshtein);

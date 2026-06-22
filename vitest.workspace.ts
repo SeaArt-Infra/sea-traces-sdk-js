@@ -10,27 +10,27 @@ export default defineWorkspace([
     },
     resolve: {
       alias: {
-        "@langfuse/client": new URL(
+        "@sea-traces/client": new URL(
           "./packages/client/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/tracing": new URL(
+        "@sea-traces/tracing": new URL(
           "./packages/tracing/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/otel": new URL(
+        "@sea-traces/otel": new URL(
           "./packages/otel/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/langchain": new URL(
+        "@sea-traces/langchain": new URL(
           "./packages/langchain/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/openai": new URL(
+        "@sea-traces/openai": new URL(
           "./packages/openai/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/core": new URL(
+        "@sea-traces/core": new URL(
           "./packages/core/dist/index.mjs",
           import.meta.url,
         ).pathname,
@@ -47,27 +47,27 @@ export default defineWorkspace([
     },
     resolve: {
       alias: {
-        "@langfuse/client": new URL(
+        "@sea-traces/client": new URL(
           "./packages/client/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/tracing": new URL(
+        "@sea-traces/tracing": new URL(
           "./packages/tracing/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/otel": new URL(
+        "@sea-traces/otel": new URL(
           "./packages/otel/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/langchain": new URL(
+        "@sea-traces/langchain": new URL(
           "./packages/langchain/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/openai": new URL(
+        "@sea-traces/openai": new URL(
           "./packages/openai/dist/index.mjs",
           import.meta.url,
         ).pathname,
-        "@langfuse/core": new URL(
+        "@sea-traces/core": new URL(
           "./packages/core/dist/index.mjs",
           import.meta.url,
         ).pathname,

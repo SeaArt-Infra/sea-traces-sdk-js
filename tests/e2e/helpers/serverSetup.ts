@@ -2,7 +2,7 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import {
   LangfuseSpanProcessor,
   type LangfuseSpanProcessorParams,
-} from "@langfuse/otel";
+} from "@sea-traces/otel";
 import { trace } from "@opentelemetry/api";
 
 export interface ServerTestEnvironment {
@@ -28,6 +28,8 @@ export async function setupServerTestEnvironment(
 ): Promise<ServerTestEnvironment> {
   // Create span processor with real Langfuse server configuration
   const spanProcessor = new LangfuseSpanProcessor({
+    apiKey: "sea-team-test",
+    baseUrl: "https://sea-traces.example.com",
     ...options.spanProcessorConfig,
   });
 

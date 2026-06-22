@@ -1,8 +1,8 @@
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
-import { ExperimentTask, LangfuseClient } from "@langfuse/client";
-import { startObservation } from "@langfuse/tracing";
+import { ExperimentTask, LangfuseClient } from "@sea-traces/client";
+import { startObservation } from "@sea-traces/tracing";
 import { nanoid } from "nanoid";
 import { describe, it, expect, beforeEach } from "vitest";
 

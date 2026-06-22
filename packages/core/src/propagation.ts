@@ -216,7 +216,7 @@ export interface PropagateAttributesParams {
  * Basic usage with user and session tracking:
  *
  * ```typescript
- * import { startActiveObservation, propagateAttributes } from '@langfuse/tracing';
+ * import { startActiveObservation, propagateAttributes } from '@sea-traces/tracing';
  *
  * // Set attributes early in the trace
  * await startActiveObservation('user_workflow', async (span) => {

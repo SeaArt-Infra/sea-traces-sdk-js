@@ -8,7 +8,7 @@ import {
   LangfuseOtelSpanAttributes,
   createTraceId,
   getActiveTraceId,
-} from "@langfuse/tracing";
+} from "@sea-traces/tracing";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { SpanAssertions } from "./helpers/assertions.js";

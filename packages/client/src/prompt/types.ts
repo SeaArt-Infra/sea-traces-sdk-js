@@ -3,7 +3,7 @@ import {
   PlaceholderMessage,
   ChatMessageWithPlaceholders,
   CreateChatPromptRequest,
-} from "@langfuse/core";
+} from "@sea-traces/core";
 
 /**
  * Enumeration of chat message types in Langfuse prompts.

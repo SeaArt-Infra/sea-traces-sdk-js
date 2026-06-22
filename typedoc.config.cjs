@@ -9,9 +9,9 @@ module.exports = {
     "./packages/tracing",
   ],
   entryPointStrategy: "packages",
-  name: "Langfuse JS/TS SDKs",
+  name: "Sea Traces JS/TS SDKs",
   navigationLinks: {
-    GitHub: "http://github.com/langfuse/langfuse-js",
+    GitHub: "http://github.com/langfuse/sea-traces-js",
     Docs: "https://langfuse.com/docs/sdk/typescript",
   },
 };

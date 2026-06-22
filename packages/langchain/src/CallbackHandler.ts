@@ -12,7 +12,7 @@ import {
 } from "@langchain/core/messages";
 import type { Generation, LLMResult } from "@langchain/core/outputs";
 import type { ChainValues } from "@langchain/core/utils/types";
-import { getGlobalLogger } from "@langfuse/core";
+import { getGlobalLogger } from "@sea-traces/core";
 import {
   startActiveObservation,
   LangfuseGeneration,
@@ -22,7 +22,7 @@ import {
   LangfuseGenerationAttributes,
   LangfuseSpanAttributes,
   propagateAttributes,
-} from "@langfuse/tracing";
+} from "@sea-traces/tracing";
 
 const LANGSMITH_HIDDEN_TAG = "langsmith:hidden";
 

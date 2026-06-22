@@ -1,3 +1,4 @@
+import { ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import {
   LangfuseAPIClient,
   LangfuseMedia,
@@ -5,8 +6,7 @@ import {
   Logger,
   base64ToBytes,
   getGlobalLogger,
-} from "@langfuse/core";
-import { ReadableSpan } from "@opentelemetry/sdk-trace-base";
+} from "@sea-traces/core";
 
 export class MediaService {
   private pendingMediaUploads: Set<Promise<void>> = new Set();

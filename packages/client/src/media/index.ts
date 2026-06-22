@@ -4,7 +4,7 @@ import {
   MediaContentType,
   getGlobalLogger,
   bytesToBase64,
-} from "@langfuse/core";
+} from "@sea-traces/core";
 
 /**
  * Parameters for resolving media references in objects.

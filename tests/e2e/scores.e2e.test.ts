@@ -1,6 +1,6 @@
-import { LangfuseClient } from "@langfuse/client";
-import { resetGlobalLogger } from "@langfuse/core";
-import { startObservation } from "@langfuse/tracing";
+import { LangfuseClient } from "@sea-traces/client";
+import { resetGlobalLogger } from "@sea-traces/core";
+import { startObservation } from "@sea-traces/tracing";
 import { trace } from "@opentelemetry/api";
 import { nanoid } from "nanoid";
 import {
