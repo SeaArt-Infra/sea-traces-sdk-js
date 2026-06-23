@@ -24,10 +24,10 @@ SEA_TEAM_KEY=sea-team-key
 SEA_TRACES_BASE_URL=https://your-sea-traces.example.com
 ```
 
-## Documentation
+## 文档
 
-- Root README: ../../README.md
-- Auth guide: ../../SEALANGFUSE_AUTH.md
+- 根 README: ../../README.md
+- 配置说明: ../../README.md#推荐配置
 
 ## License
 

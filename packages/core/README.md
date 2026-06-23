@@ -18,10 +18,10 @@ packages.
 User-facing packages require both `SEA_TEAM_KEY` and `SEA_TRACES_BASE_URL`, or
 equivalent constructor options `apiKey` and `baseUrl`.
 
-## Documentation
+## 文档
 
-- Root README: ../../README.md
-- Auth guide: ../../SEALANGFUSE_AUTH.md
+- 根 README: ../../README.md
+- 配置说明: ../../README.md#推荐配置
 
 ## License
 
