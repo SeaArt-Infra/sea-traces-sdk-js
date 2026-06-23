@@ -2,8 +2,7 @@
 
 [MIT License](https://opensource.org/licenses/MIT)
 
-Sea Traces JavaScript / TypeScript SDK monorepo。SDK 内部复用现有 Langfuse
-trace 和导出链路，对外提供 Sea Traces 包名和配置方式。
+Sea Traces JavaScript / TypeScript SDK monorepo，提供统一的 trace 采集和导出能力，对外暴露 Sea Traces 包名、客户端和配置方式。
 
 ## 安装
 
@@ -82,15 +81,13 @@ pnpm install
 
 ## 包列表
 
-
-| Package                                       | 说明                                       | 运行环境         |
-| --------------------------------------------- | ---------------------------------------- | ------------ |
-| [@sea-traces/client](./packages/client)       | 适用于通用 JavaScript 环境的 Sea Traces API 客户端  | Universal JS |
-| [@sea-traces/tracing](./packages/tracing)     | 基于 OpenTelemetry 的 Sea Traces tracing 方法 | Node.js 20+  |
-| [@sea-traces/otel](./packages/otel)           | Sea Traces OpenTelemetry 导出辅助包           | Node.js 20+  |
-| [@sea-traces/openai](./packages/openai)       | OpenAI SDK 集成                            | Universal JS |
-| [@sea-traces/langchain](./packages/langchain) | LangChain 集成                             | Universal JS |
-
+| Package                                       | 说明                                               | 运行环境     |
+| --------------------------------------------- | -------------------------------------------------- | ------------ |
+| [@sea-traces/client](./packages/client)       | 适用于通用 JavaScript 环境的 Sea Traces API 客户端 | Universal JS |
+| [@sea-traces/tracing](./packages/tracing)     | 基于 OpenTelemetry 的 Sea Traces tracing 方法      | Node.js 20+  |
+| [@sea-traces/otel](./packages/otel)           | Sea Traces OpenTelemetry 导出辅助包                | Node.js 20+  |
+| [@sea-traces/openai](./packages/openai)       | OpenAI SDK 集成                                    | Universal JS |
+| [@sea-traces/langchain](./packages/langchain) | LangChain 集成                                     | Universal JS |
 
 ## 适用版本
 
@@ -119,9 +116,9 @@ export SEA_TRACES_BASE_URL="https://your-sea-traces.example.com"
 初始化时会解析一次项目凭证，后续调用继续走 SDK 原有上报链路。
 
 ```ts
-import { LangfuseClient } from "@sea-traces/client";
+import { SeaTracesClient } from "@sea-traces/client";
 
-const client = new LangfuseClient();
+const client = new SeaTracesClient();
 
 const project = await client.api.projects.get();
 ```
@@ -129,9 +126,9 @@ const project = await client.api.projects.get();
 如果配置来自配置中心或运行时上下文，可以在构造函数中传入：
 
 ```ts
-import { LangfuseClient } from "@sea-traces/client";
+import { SeaTracesClient } from "@sea-traces/client";
 
-const client = new LangfuseClient({
+const client = new SeaTracesClient({
   apiKey: "sea-team-key",
   baseUrl: "https://your-sea-traces.example.com",
 });
@@ -142,9 +139,9 @@ const client = new LangfuseClient({
 ## OpenTelemetry 使用
 
 ```ts
-import { LangfuseSpanProcessor } from "@sea-traces/otel";
+import { SeaTracesSpanProcessor } from "@sea-traces/otel";
 
-const processor = new LangfuseSpanProcessor({
+const processor = new SeaTracesSpanProcessor({
   apiKey: "sea-team-key",
   baseUrl: "https://your-sea-traces.example.com",
 });
@@ -161,15 +158,13 @@ SDK 按以下顺序选择 Sea Traces 配置：
 
 常见错误和处理方式：
 
-
-| 错误                       | 原因                    | 处理                                           |
-| ------------------------ | --------------------- | -------------------------------------------- |
-| `SEA_TEAM_KEY` 缺失        | 未配置 Team Key          | 设置 `SEA_TEAM_KEY` 或显式传 `apiKey`              |
-| `SEA_TRACES_BASE_URL` 缺失 | 未指定 Sea Traces 服务地址   | 设置 `SEA_TRACES_BASE_URL` 或显式传 `baseUrl`      |
-| resolver 返回非 2xx         | 凭证查询接口不可达或服务异常        | 检查 `SEA_TRACES_BASE_URL`、网络和 Sea Traces 服务状态 |
-| `status` 不是 `ACTIVE`     | Team Key 未启用或映射不可用    | 检查 Team Key 和项目凭证状态                          |
-| 查询不到 trace               | 数据未 flush 或服务地址指向错误环境 | 调用 flush/shutdown，确认 `SEA_TRACES_BASE_URL`   |
-
+| 错误                       | 原因                                | 处理                                                   |
+| -------------------------- | ----------------------------------- | ------------------------------------------------------ |
+| `SEA_TEAM_KEY` 缺失        | 未配置 Team Key                     | 设置 `SEA_TEAM_KEY` 或显式传 `apiKey`                  |
+| `SEA_TRACES_BASE_URL` 缺失 | 未指定 Sea Traces 服务地址          | 设置 `SEA_TRACES_BASE_URL` 或显式传 `baseUrl`          |
+| resolver 返回非 2xx        | 凭证查询接口不可达或服务异常        | 检查 `SEA_TRACES_BASE_URL`、网络和 Sea Traces 服务状态 |
+| `status` 不是 `ACTIVE`     | Team Key 未启用或映射不可用         | 检查 Team Key 和项目凭证状态                           |
+| 查询不到 trace             | 数据未 flush 或服务地址指向错误环境 | 调用 flush/shutdown，确认 `SEA_TRACES_BASE_URL`        |
 
 日志和异常信息不会输出完整 Team Key、`publicKey`、`secretKey` 或原始凭证响应。
 
@@ -185,7 +180,7 @@ export SEA_TRACES_BASE_URL="https://your-sea-traces.example.com"
 如果代码里原来显式传入底层项目凭证，可以改为：
 
 ```ts
-const client = new LangfuseClient({
+const client = new SeaTracesClient({
   apiKey: "sea-team-key",
   baseUrl: "https://your-sea-traces.example.com",
 });
@@ -198,4 +193,3 @@ const client = new LangfuseClient({
 - 不要在日志里打印完整 Team Key、`publicKey` 或 `secretKey`。
 - 测试环境和生产环境都显式配置 `SEA_TRACES_BASE_URL`。
 - 容器或函数计算环境中，在启动时注入环境变量，避免在代码中硬编码。
-

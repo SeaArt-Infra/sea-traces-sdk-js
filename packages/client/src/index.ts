@@ -1,4 +1,6 @@
 export * from "./LangfuseClient.js";
+// Sea Traces 对外别名，与内部 LangfuseClient 等价
+export { LangfuseClient as SeaTracesClient } from "./LangfuseClient.js";
 export * from "./prompt/index.js";
 export * from "./score/index.js";
 export * from "./dataset/index.js";
