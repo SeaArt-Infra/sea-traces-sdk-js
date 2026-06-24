@@ -1,8 +1,12 @@
 type LangfuseEnvVar =
   | "LANGFUSE_PUBLIC_KEY"
   | "LANGFUSE_SECRET_KEY"
-  | "SEA_TEAM_KEY"
+  | "SEATRACES_PUBLIC_KEY"
+  | "SEATRACES_SECRET_KEY"
+  | "SEATRACES_BASE_URL"
+  | "SEA_TRACES_API_KEY"
   | "SEA_TRACES_BASE_URL"
+  | "SEA_TRACES_PROJECT_ID"
   | "LANGFUSE_BASE_URL"
   | "LANGFUSE_BASEURL" // legacy v2
   | "LANGFUSE_TIMEOUT"
@@ -11,9 +15,7 @@ type LangfuseEnvVar =
   | "LANGFUSE_LOG_LEVEL"
   | "LANGFUSE_DEBUG"
   | "LANGFUSE_RELEASE"
-  | "LANGFUSE_TRACING_ENVIRONMENT"
-  | "SEALANGFUSE_API_KEY"
-  | "SEALANGFUSE_CREDENTIALS_URL";
+  | "LANGFUSE_TRACING_ENVIRONMENT";
 
 export function getEnv(key: LangfuseEnvVar): string | undefined {
   if (typeof process !== "undefined" && process.env[key]) {

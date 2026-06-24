@@ -93,27 +93,37 @@ pnpm install
 
 支持以下配置的 SDK 版本可使用本文档中的方式：
 
-- 环境变量：`SEA_TEAM_KEY`、`SEA_TRACES_BASE_URL`
-- 构造参数：`apiKey`、`baseUrl`
+- 直传环境变量：`SEATRACES_PUBLIC_KEY`、`SEATRACES_SECRET_KEY`、`SEATRACES_BASE_URL`
+- Gateway 环境变量：`SEA_TRACES_API_KEY`、`SEA_TRACES_BASE_URL`、`SEA_TRACES_PROJECT_ID`
+- 构造参数：`publicKey`、`secretKey`、`baseUrl`，或 `apiKey`、`baseUrl`、`projectId`
 
-这两个参数是必填项。没有配置时，SDK 不能正常初始化，也不会上报 trace、span、
-score、prompt 等数据。
+必须完整配置其中一种模式。没有配置时，SDK 不能正常初始化，也不会上报 trace、
+span、score、prompt 等数据。
 
 ## 推荐配置
 
-生产和测试环境都必须显式配置 `SEA_TRACES_BASE_URL`。不要只配置 Team Key，
-因为同一个 Team Key 可能同时用于不同环境，SDK 需要根据 Sea Traces 服务地址
-解析项目凭证并确定最终上报地址。
+外部用户推荐使用 Gateway 认证。生产和测试环境都必须显式配置
+`SEA_TRACES_BASE_URL` 和 `SEA_TRACES_PROJECT_ID`，SDK 会根据这些信息解析项目上传
+凭证并确定最终上报地址。
 
 ```bash
-export SEA_TEAM_KEY="sea-team-key"
+export SEA_TRACES_API_KEY="sea-traces-api-key"
 export SEA_TRACES_BASE_URL="https://your-sea-traces.example.com"
+export SEA_TRACES_PROJECT_ID="project-id"
+```
+
+内部用户如果已经持有上传凭证，可以使用直传模式：
+
+```bash
+export SEATRACES_PUBLIC_KEY="public-upload-key"
+export SEATRACES_SECRET_KEY="secret-upload-key"
+export SEATRACES_BASE_URL="https://upload.sea-traces.example.com"
 ```
 
 ## 快速开始
 
-下面的代码会从环境变量读取 `SEA_TEAM_KEY` 和 `SEA_TRACES_BASE_URL`。SDK
-初始化时会解析一次项目凭证，后续调用继续走 SDK 原有上报链路。
+下面的代码会从环境变量读取 Gateway 配置。SDK 初始化时会解析一次项目凭证，
+后续调用继续走 SDK 原有上报链路。
 
 ```ts
 import { SeaTracesClient } from "@sea-traces/client";
@@ -129,8 +139,9 @@ const project = await client.api.projects.get();
 import { SeaTracesClient } from "@sea-traces/client";
 
 const client = new SeaTracesClient({
-  apiKey: "sea-team-key",
+  apiKey: "sea-traces-api-key",
   baseUrl: "https://your-sea-traces.example.com",
+  projectId: "project-id",
 });
 ```
 
@@ -142,8 +153,9 @@ const client = new SeaTracesClient({
 import { SeaTracesSpanProcessor } from "@sea-traces/otel";
 
 const processor = new SeaTracesSpanProcessor({
-  apiKey: "sea-team-key",
+  apiKey: "sea-traces-api-key",
   baseUrl: "https://your-sea-traces.example.com",
+  projectId: "project-id",
 });
 ```
 
@@ -151,45 +163,47 @@ const processor = new SeaTracesSpanProcessor({
 
 SDK 按以下顺序选择 Sea Traces 配置：
 
-1. 显式传入 `apiKey`、`baseUrl`
-2. 环境变量 `SEA_TEAM_KEY`、`SEA_TRACES_BASE_URL`
+1. 显式传入 `publicKey`、`secretKey`、`baseUrl`
+2. 环境变量 `SEATRACES_PUBLIC_KEY`、`SEATRACES_SECRET_KEY`、`SEATRACES_BASE_URL`
+3. 显式传入 `apiKey`、`baseUrl`、`projectId`
+4. 环境变量 `SEA_TRACES_API_KEY`、`SEA_TRACES_BASE_URL`、`SEA_TRACES_PROJECT_ID`
 
 ## 错误处理
 
 常见错误和处理方式：
 
-| 错误                       | 原因                                | 处理                                                   |
-| -------------------------- | ----------------------------------- | ------------------------------------------------------ |
-| `SEA_TEAM_KEY` 缺失        | 未配置 Team Key                     | 设置 `SEA_TEAM_KEY` 或显式传 `apiKey`                  |
-| `SEA_TRACES_BASE_URL` 缺失 | 未指定 Sea Traces 服务地址          | 设置 `SEA_TRACES_BASE_URL` 或显式传 `baseUrl`          |
-| resolver 返回非 2xx        | 凭证查询接口不可达或服务异常        | 检查 `SEA_TRACES_BASE_URL`、网络和 Sea Traces 服务状态 |
-| `status` 不是 `ACTIVE`     | Team Key 未启用或映射不可用         | 检查 Team Key 和项目凭证状态                           |
-| 查询不到 trace             | 数据未 flush 或服务地址指向错误环境 | 调用 flush/shutdown，确认 `SEA_TRACES_BASE_URL`        |
+| 错误                | 原因                                | 处理                                                   |
+| ------------------- | ----------------------------------- | ------------------------------------------------------ |
+| 认证配置不完整      | 直传或 Gateway 配置缺少字段         | 完整设置一种认证模式                                   |
+| resolver 返回非 2xx | 凭证查询接口不可达或服务异常        | 检查 `SEA_TRACES_BASE_URL`、网络和 Sea Traces 服务状态 |
+| 查询不到 trace      | 数据未 flush 或服务地址指向错误环境 | 调用 flush/shutdown，确认 `SEA_TRACES_BASE_URL`        |
 
-日志和异常信息不会输出完整 Team Key、`publicKey`、`secretKey` 或原始凭证响应。
+日志和异常信息不会输出完整 API key、`publicKey`、`secretKey` 或原始凭证响应。
 
 ## 从旧配置迁移
 
 旧方式通常需要直接配置 public key 和 secret key。迁移后只需要配置：
 
 ```bash
-export SEA_TEAM_KEY="sea-team-key"
+export SEA_TRACES_API_KEY="sea-traces-api-key"
 export SEA_TRACES_BASE_URL="https://your-sea-traces.example.com"
+export SEA_TRACES_PROJECT_ID="project-id"
 ```
 
 如果代码里原来显式传入底层项目凭证，可以改为：
 
 ```ts
 const client = new SeaTracesClient({
-  apiKey: "sea-team-key",
+  apiKey: "sea-traces-api-key",
   baseUrl: "https://your-sea-traces.example.com",
+  projectId: "project-id",
 });
 ```
 
 ## 安全建议
 
-- 不要把 `SEA_TEAM_KEY` 提交到 Git。
+- 不要把 `SEA_TRACES_API_KEY`、`SEATRACES_SECRET_KEY` 提交到 Git。
 - 不要提交 `.env` 文件。
-- 不要在日志里打印完整 Team Key、`publicKey` 或 `secretKey`。
+- 不要在日志里打印完整 API key、`publicKey` 或 `secretKey`。
 - 测试环境和生产环境都显式配置 `SEA_TRACES_BASE_URL`。
 - 容器或函数计算环境中，在启动时注入环境变量，避免在代码中硬编码。

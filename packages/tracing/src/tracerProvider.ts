@@ -89,8 +89,9 @@ function getGlobalState(): LangfuseGlobalState {
  * const provider = new NodeTracerProvider({
  *   spanProcessors: [
  *     new LangfuseSpanProcessor({
- *       apiKey: "sea-team-key",
- *       baseUrl: "https://your-sea-traces.example.com"
+ *       apiKey: "sea-traces-api-key",
+ *       baseUrl: "https://your-sea-traces.example.com",
+ *       projectId: "project-id"
  *     })
  *   ]
  * });

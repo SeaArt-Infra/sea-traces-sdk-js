@@ -15,8 +15,10 @@ packages.
 
 ## Required Configuration
 
-User-facing packages require both `SEA_TEAM_KEY` and `SEA_TRACES_BASE_URL`, or
-equivalent constructor options `apiKey` and `baseUrl`.
+User-facing packages require either direct upload credentials
+(`SEATRACES_PUBLIC_KEY`, `SEATRACES_SECRET_KEY`, `SEATRACES_BASE_URL`) or
+gateway credentials (`SEA_TRACES_API_KEY`, `SEA_TRACES_BASE_URL`,
+`SEA_TRACES_PROJECT_ID`).
 
 ## 文档
 

@@ -6,12 +6,15 @@ import type {
   SpanExporter,
 } from "@opentelemetry/sdk-trace-base";
 import {
+  base64Encode,
+  clearSealangfuseCredentialsCache,
   LANGFUSE_TRACER_NAME,
   LANGFUSE_TRACE_ID_BAGGAGE_KEY,
+  LangfuseAPIClient,
   LangfuseOtelSpanAttributes,
   getPropagatedAttributesFromContext,
 } from "@sea-traces/core";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LangfuseSpanProcessor } from "./span-processor.js";
 
@@ -96,6 +99,8 @@ function contextWithBaggageClaim(
 }
 
 const TRACE_ID = "0123456789abcdef0123456789abcdef";
+const originalFetch = globalThis.fetch;
+type FetchCall = [Parameters<typeof fetch>[0], Parameters<typeof fetch>[1]?];
 
 describe("LangfuseSpanProcessor app-root marking", () => {
   let processor: LangfuseSpanProcessor;
@@ -389,5 +394,143 @@ describe("propagation: internal app-root baggage", () => {
     for (const key of Object.keys(propagated)) {
       expect(key).not.toContain("langfuse_trace_id");
     }
+  });
+});
+
+describe("LangfuseSpanProcessor Sea Traces credentials", () => {
+  afterEach(() => {
+    clearSealangfuseCredentialsCache();
+    vi.unstubAllEnvs();
+    globalThis.fetch = originalFetch;
+  });
+
+  it("uses direct credentials without calling the resolver", async () => {
+    const fetchMock = vi.fn(async (url: Parameters<typeof fetch>[0]) => {
+      expect(String(url)).toBe(
+        "https://upload-direct.example.com/api/public/projects",
+      );
+
+      return new Response(JSON.stringify({ data: [] }));
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const processor = new LangfuseSpanProcessor({
+      publicKey: "pk-lf-direct",
+      secretKey: "sk-lf-direct",
+      baseUrl: "https://upload-direct.example.com",
+      exporter: noopExporter,
+    });
+    const apiClient = (processor as unknown as { apiClient: LangfuseAPIClient })
+      .apiClient;
+
+    await apiClient.projects.get();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      (fetchMock.mock.calls[0] as unknown as FetchCall | undefined)?.[1]
+        ?.headers,
+    ).toMatchObject({
+      Authorization: `Basic ${base64Encode("pk-lf-direct:sk-lf-direct")}`,
+      "X-Langfuse-Public-Key": "pk-lf-direct",
+    });
+  });
+
+  it("resolves gateway credentials and uses the resolved upload base URL", async () => {
+    const fetchMock = vi.fn(
+      async (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        if (
+          String(url) === "https://gateway.example.com/hub/sea-traces-api-key"
+        ) {
+          expect(JSON.parse(String(init?.body))).toEqual({
+            api_key: "sa-test",
+            base_url: "https://gateway.example.com",
+            project_id: "project-test",
+          });
+
+          return new Response(
+            JSON.stringify({
+              publicKey: "pk-lf-resolved",
+              secretKey: "sk-lf-resolved",
+              baseUrl: "https://upload.example.com",
+            }),
+          );
+        }
+
+        expect(String(url)).toBe(
+          "https://upload.example.com/api/public/projects",
+        );
+
+        return new Response(JSON.stringify({ data: [] }));
+      },
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const processor = new LangfuseSpanProcessor({
+      apiKey: "sa-test",
+      baseUrl: "https://gateway.example.com",
+      projectId: "project-test",
+      exporter: noopExporter,
+    });
+    const apiClient = (processor as unknown as { apiClient: LangfuseAPIClient })
+      .apiClient;
+
+    await apiClient.projects.get();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      (fetchMock.mock.calls[1] as unknown as FetchCall | undefined)?.[1]
+        ?.headers,
+    ).toMatchObject({
+      Authorization: `Basic ${base64Encode("pk-lf-resolved:sk-lf-resolved")}`,
+      "X-Langfuse-Public-Key": "pk-lf-resolved",
+    });
+  });
+
+  it("uses gateway env vars when constructor auth is omitted", async () => {
+    vi.stubEnv("SEA_TRACES_API_KEY", "sea-traces-env");
+    vi.stubEnv("SEA_TRACES_BASE_URL", "https://gateway.example.com");
+    vi.stubEnv("SEA_TRACES_PROJECT_ID", "project-env");
+
+    const fetchMock = vi.fn(async (url: Parameters<typeof fetch>[0]) => {
+      if (
+        String(url) === "https://gateway.example.com/hub/sea-traces-api-key"
+      ) {
+        return new Response(
+          JSON.stringify({
+            publicKey: "pk-lf-env",
+            secretKey: "sk-lf-env",
+            baseUrl: "https://upload-env.example.com",
+          }),
+        );
+      }
+
+      expect(String(url)).toBe(
+        "https://upload-env.example.com/api/public/projects",
+      );
+
+      return new Response(JSON.stringify({ data: [] }));
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const processor = new LangfuseSpanProcessor({ exporter: noopExporter });
+    const apiClient = (processor as unknown as { apiClient: LangfuseAPIClient })
+      .apiClient;
+
+    await apiClient.projects.get();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws when auth config is incomplete", () => {
+    expect(
+      () =>
+        new LangfuseSpanProcessor({
+          apiKey: "sa-test",
+          baseUrl: "https://gateway.example.com",
+          exporter: noopExporter,
+        }),
+    ).toThrow(
+      "Sea Traces gateway authentication requires apiKey, baseUrl, and projectId",
+    );
   });
 });

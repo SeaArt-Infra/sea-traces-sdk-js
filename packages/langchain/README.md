@@ -14,12 +14,22 @@ LangChain integration for Sea Traces.
 
 ## Required Configuration
 
-Set both values before using the callback handler, or pass them as `apiKey` and
-`baseUrl` options where the integration accepts SDK configuration.
+For gateway authentication, set all three values before using the callback
+handler, or pass them as `apiKey`, `baseUrl`, and `projectId` options where the
+integration accepts SDK configuration.
 
 ```bash
-SEA_TEAM_KEY=sea-team-key
+SEA_TRACES_API_KEY=sea-traces-api-key
 SEA_TRACES_BASE_URL=https://your-sea-traces.example.com
+SEA_TRACES_PROJECT_ID=project-id
+```
+
+For direct upload authentication, set:
+
+```bash
+SEATRACES_PUBLIC_KEY=public-upload-key
+SEATRACES_SECRET_KEY=secret-upload-key
+SEATRACES_BASE_URL=https://upload.sea-traces.example.com
 ```
 
 ## 文档

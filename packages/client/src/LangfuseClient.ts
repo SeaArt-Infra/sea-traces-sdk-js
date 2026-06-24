@@ -3,7 +3,7 @@ import {
   LANGFUSE_SDK_VERSION,
   getGlobalLogger,
   getEnv,
-  resolveSealangfuseCredentials,
+  resolveSeaTracesAuth,
 } from "@sea-traces/core";
 
 import { DatasetManager } from "./dataset/index.js";
@@ -19,32 +19,39 @@ import { ScoreManager } from "./score/index.js";
  */
 export interface LangfuseClientParams {
   /**
-   * Public API key for authentication with Langfuse.
-   * Can also be provided via LANGFUSE_PUBLIC_KEY environment variable.
+   * Public upload key for direct Sea Traces ingestion.
+   * Can also be provided via SEATRACES_PUBLIC_KEY environment variable.
    */
   publicKey?: string;
 
   /**
-   * Secret API key for authentication with Langfuse.
-   * Can also be provided via LANGFUSE_SECRET_KEY environment variable.
+   * Secret upload key for direct Sea Traces ingestion.
+   * Can also be provided via SEATRACES_SECRET_KEY environment variable.
    */
   secretKey?: string;
 
   /**
-   * Required Sea Traces team key used to resolve Langfuse project credentials.
-   * Can also be provided via SEA_TEAM_KEY environment variable.
+   * Sea Traces gateway API key used to resolve upload credentials.
+   * Can also be provided via SEA_TRACES_API_KEY environment variable.
    */
   apiKey?: string;
 
   /**
-   * Required Sea Traces base URL.
-   * Can also be provided via SEA_TRACES_BASE_URL environment variable.
+   * Sea Traces base URL.
+   * In direct mode this is the upload URL and can also be set via
+   * SEATRACES_BASE_URL. In gateway mode this is the gateway URL and can also
+   * be set via SEA_TRACES_BASE_URL.
    */
   baseUrl?: string;
 
   /**
-   * Optional override for the Sealangfuse credential resolver endpoint.
-   * Can also be provided via SEALANGFUSE_CREDENTIALS_URL environment variable.
+   * Sea Traces project ID for gateway authentication.
+   * Can also be provided via SEA_TRACES_PROJECT_ID environment variable.
+   */
+  projectId?: string;
+
+  /**
+   * Optional override for the Sea Traces credential resolver endpoint.
    */
   credentialsUrl?: string;
 
@@ -76,8 +83,9 @@ export interface LangfuseClientParams {
  * ```typescript
  * // Initialize with explicit credentials
  * const langfuse = new LangfuseClient({
- *   apiKey: "sea-team-key",
- *   baseUrl: "https://your-sea-traces.example.com"
+ *   apiKey: "sea-traces-api-key",
+ *   baseUrl: "https://your-sea-traces.example.com",
+ *   projectId: "project-id"
  * });
  *
  * // Or use environment variables
@@ -90,12 +98,6 @@ export interface LangfuseClientParams {
  *
  * @public
  */
-function getRequiredConfig(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-
-  return trimmed ? trimmed : undefined;
-}
-
 export class LangfuseClient {
   /**
    * Direct access to the underlying Langfuse API client.
@@ -136,8 +138,9 @@ export class LangfuseClient {
    * @example Basic experiment execution
    * ```typescript
    * const langfuse = new LangfuseClient({
-   *   apiKey: "sea-team-key",
-   *   baseUrl: "https://your-sea-traces.example.com"
+   *   apiKey: "sea-traces-api-key",
+   *   baseUrl: "https://your-sea-traces.example.com",
+   *   projectId: "project-id"
    * });
    *
    * const result = await langfuse.experiment.run({
@@ -255,66 +258,49 @@ export class LangfuseClient {
    *
    * @param params - Configuration parameters. If not provided, will use environment variables.
    *
-   * @throws When apiKey/SEA_TEAM_KEY or baseUrl/SEA_TRACES_BASE_URL is missing.
+   * @throws When neither direct credentials nor gateway credentials are complete.
    *
    * @example
    * ```typescript
    * // With explicit configuration
    * const client = new LangfuseClient({
-   *   apiKey: "sea-team-key",
-   *   baseUrl: "https://your-sea-traces.example.com"
+   *   apiKey: "sea-traces-api-key",
+   *   baseUrl: "https://your-sea-traces.example.com",
+   *   projectId: "project-id"
    * });
    *
    * // Using environment variables
-   * // SEA_TEAM_KEY and SEA_TRACES_BASE_URL must both be set.
+   * // SEA_TRACES_API_KEY, SEA_TRACES_BASE_URL, and SEA_TRACES_PROJECT_ID
+   * // must all be set for gateway authentication.
    * const client = new LangfuseClient();
    * ```
    */
   constructor(params?: LangfuseClientParams) {
     const logger = getGlobalLogger();
 
-    const publicKey = params?.publicKey ?? getEnv("LANGFUSE_PUBLIC_KEY");
-    const secretKey = params?.secretKey ?? getEnv("LANGFUSE_SECRET_KEY");
-    const apiKey = getRequiredConfig(params?.apiKey ?? getEnv("SEA_TEAM_KEY"));
-    const configuredBaseUrl = getRequiredConfig(
-      params?.baseUrl ?? getEnv("SEA_TRACES_BASE_URL"),
-    );
-
-    if (!apiKey) {
-      throw new Error("SEA_TEAM_KEY or apiKey is required.");
-    }
-
-    if (!configuredBaseUrl) {
-      throw new Error("SEA_TRACES_BASE_URL or baseUrl is required.");
-    }
-
-    this.baseUrl = configuredBaseUrl;
-
     const timeoutSeconds =
       params?.timeout ?? Number(getEnv("LANGFUSE_TIMEOUT") ?? 5);
+    const auth = resolveSeaTracesAuth({
+      publicKey: params?.publicKey,
+      secretKey: params?.secretKey,
+      baseUrl: params?.baseUrl,
+      apiKey: params?.apiKey,
+      projectId: params?.projectId,
+      credentialsUrl: params?.credentialsUrl,
+      timeoutSeconds,
+    });
+    const resolvedBaseUrl =
+      auth.mode === "gateway"
+        ? () => auth.credentials.then((value) => value.baseUrl)
+        : auth.baseUrl;
 
-    const resolvedCredentials =
-      publicKey && secretKey
-        ? undefined
-        : resolveSealangfuseCredentials({
-            apiKey,
-            baseUrl: this.baseUrl,
-            credentialsUrl: params?.credentialsUrl,
-            timeoutSeconds,
-          });
-
-    const resolvedPublicKey =
-      publicKey ??
-      (() => resolvedCredentials?.then((value) => value.publicKey));
-    const resolvedSecretKey =
-      secretKey ??
-      (() => resolvedCredentials?.then((value) => value.secretKey));
+    this.baseUrl = auth.baseUrl;
 
     this.api = new LangfuseAPIClient({
-      baseUrl: this.baseUrl,
-      username: resolvedPublicKey,
-      password: resolvedSecretKey,
-      xLangfusePublicKey: resolvedPublicKey,
+      baseUrl: resolvedBaseUrl,
+      username: auth.publicKey,
+      password: auth.secretKey,
+      xLangfusePublicKey: auth.publicKey,
       xLangfuseSdkVersion: LANGFUSE_SDK_VERSION,
       xLangfuseSdkName: "javascript",
       environment: "", // noop as baseUrl is set
@@ -322,9 +308,8 @@ export class LangfuseClient {
     });
 
     logger.debug("Initialized LangfuseClient with params:", {
-      publicKey,
-      hasApiKey: true,
-      baseUrl: this.baseUrl,
+      authMode: auth.mode,
+      baseUrl: auth.baseUrl,
       timeoutSeconds,
     });
 

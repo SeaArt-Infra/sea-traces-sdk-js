@@ -49,6 +49,10 @@ export default defineConfig({
         "./packages/openai/src/index.ts",
         import.meta.url,
       ).pathname,
+      "@sea-traces/core": new URL(
+        "./packages/core/src/index.ts",
+        import.meta.url,
+      ).pathname,
     },
   },
 });
