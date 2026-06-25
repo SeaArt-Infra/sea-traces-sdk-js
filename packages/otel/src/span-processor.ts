@@ -14,14 +14,16 @@ import {
   LogLevel,
   getGlobalLogger,
   LangfuseAPIClient,
+  IngestionEvent,
   LANGFUSE_SDK_VERSION,
   LangfuseOtelSpanAttributes,
   getEnv,
   base64Encode,
   getLangfuseTraceIdFromBaggage,
   getPropagatedAttributesFromContext,
+  generateUUID,
   resolveSeaTracesAuth,
-  type SealangfuseCredentials,
+  type SeaTracesProject,
 } from "@sea-traces/core";
 
 import { MediaService } from "./MediaService.js";
@@ -110,8 +112,8 @@ export interface LangfuseSpanProcessorParams {
   baseUrl?: string;
 
   /**
-   * Sea Traces project ID for gateway authentication.
-   * Can also be set via SEA_TRACES_PROJECT_ID environment variable.
+   * Sea Traces project ID for project-based noauth ingestion.
+   * Can also be set via SEATRACES_PROJECT_ID environment variable.
    */
   projectId?: string;
 
@@ -175,13 +177,16 @@ export interface LangfuseSpanProcessorParams {
   exportMode?: "immediate" | "batched";
 }
 
-class LazySealangfuseOTLPTraceExporter implements SpanExporter {
-  private exporter?: OTLPTraceExporter;
-  private exporterPromise?: Promise<OTLPTraceExporter>;
+class SeaTracesNoauthSpanExporter implements SpanExporter {
+  private apiClient?: LangfuseAPIClient;
+  private apiClientPromise?: Promise<LangfuseAPIClient>;
 
   constructor(
     private readonly params: {
-      credentials: Promise<SealangfuseCredentials>;
+      project:
+        | (() => Promise<SeaTracesProject>)
+        | Promise<SeaTracesProject>
+        | SeaTracesProject;
       timeoutSeconds: number;
       additionalHeaders?: Record<string, string>;
     },
@@ -191,8 +196,18 @@ class LazySealangfuseOTLPTraceExporter implements SpanExporter {
     spans: ReadableSpan[],
     resultCallback: (result: { code: ExportResultCode; error?: Error }) => void,
   ): void {
-    void this.getExporter()
-      .then((exporter) => exporter.export(spans, resultCallback))
+    void this.getApiClient()
+      .then((apiClient) =>
+        apiClient.ingestion.batch(
+          {
+            batch: spans.flatMap((span) => this.toIngestionEvents(span)),
+          },
+          {
+            timeoutInSeconds: this.params.timeoutSeconds,
+          },
+        ),
+      )
+      .then(() => resultCallback({ code: ExportResultCode.SUCCESS }))
       .catch((error) =>
         resultCallback({
           code: ExportResultCode.FAILED,
@@ -202,44 +217,294 @@ class LazySealangfuseOTLPTraceExporter implements SpanExporter {
   }
 
   public async forceFlush(): Promise<void> {
-    if (!this.exporterPromise) return;
-
-    const exporter = await this.exporterPromise;
-    await exporter.forceFlush?.();
+    return;
   }
 
   public async shutdown(): Promise<void> {
-    if (!this.exporterPromise) return;
-
-    const exporter = await this.exporterPromise;
-    await exporter.shutdown();
+    return;
   }
 
-  private getExporter(): Promise<OTLPTraceExporter> {
-    if (this.exporter) return Promise.resolve(this.exporter);
+  private getApiClient(): Promise<LangfuseAPIClient> {
+    if (this.apiClient) return Promise.resolve(this.apiClient);
 
-    this.exporterPromise ??= this.params.credentials.then((credentials) => {
-      const authHeaderValue = base64Encode(
-        `${credentials.publicKey}:${credentials.secretKey}`,
-      );
+    const project =
+      typeof this.params.project === "function"
+        ? this.params.project()
+        : this.params.project;
 
-      this.exporter = new OTLPTraceExporter({
-        url: `${credentials.baseUrl}/api/public/otel/v1/traces`,
-        headers: {
-          Authorization: `Basic ${authHeaderValue}`,
-          "x-langfuse-sdk-name": "javascript",
-          "x-langfuse-sdk-version": LANGFUSE_SDK_VERSION,
-          "x-langfuse-public-key": credentials.publicKey,
-          ...this.params.additionalHeaders,
-        },
-        timeoutMillis: this.params.timeoutSeconds * 1_000,
+    this.apiClientPromise ??= Promise.resolve(project).then((project) => {
+      this.apiClient = new LangfuseAPIClient({
+        baseUrl: project.baseUrl,
+        projectId: project.projectId,
+        xLangfuseSdkName: "javascript",
+        xLangfuseSdkVersion: LANGFUSE_SDK_VERSION,
+        environment: "",
+        headers: this.params.additionalHeaders,
       });
 
-      return this.exporter;
+      return this.apiClient;
     });
 
-    return this.exporterPromise;
+    return this.apiClientPromise;
   }
+
+  private toIngestionEvents(span: ReadableSpan): IngestionEvent[] {
+    const traceEvent = this.toTraceEvent(span);
+    const observationEvent = this.toObservationEvent(span);
+
+    return traceEvent ? [traceEvent, observationEvent] : [observationEvent];
+  }
+
+  private toTraceEvent(
+    span: ReadableSpan,
+  ): IngestionEvent.TraceCreate | undefined {
+    const attributes = span.attributes;
+    const isRoot =
+      span.parentSpanContext?.spanId == null ||
+      attributes[LangfuseOtelSpanAttributes.IS_APP_ROOT] === true;
+
+    if (!isRoot) return undefined;
+
+    return {
+      id: generateUUID(),
+      type: "trace-create",
+      timestamp: new Date(hrTimeToMilliseconds(span.endTime)).toISOString(),
+      body: {
+        id: span.spanContext().traceId,
+        timestamp: new Date(hrTimeToMilliseconds(span.startTime)).toISOString(),
+        name:
+          this.stringAttribute(
+            attributes[LangfuseOtelSpanAttributes.TRACE_NAME],
+          ) ?? span.name,
+        userId: this.stringAttribute(
+          attributes[LangfuseOtelSpanAttributes.TRACE_USER_ID],
+        ),
+        sessionId: this.stringAttribute(
+          attributes[LangfuseOtelSpanAttributes.TRACE_SESSION_ID],
+        ),
+        input: this.jsonAttribute(
+          attributes[LangfuseOtelSpanAttributes.TRACE_INPUT],
+        ),
+        output: this.jsonAttribute(
+          attributes[LangfuseOtelSpanAttributes.TRACE_OUTPUT],
+        ),
+        metadata: this.metadataAttributes(attributes, "trace"),
+        tags: this.stringArrayAttribute(
+          attributes[LangfuseOtelSpanAttributes.TRACE_TAGS],
+        ),
+        release: this.stringAttribute(
+          attributes[LangfuseOtelSpanAttributes.RELEASE],
+        ),
+        version: this.stringAttribute(
+          attributes[LangfuseOtelSpanAttributes.VERSION],
+        ),
+        environment: this.stringAttribute(
+          attributes[LangfuseOtelSpanAttributes.ENVIRONMENT],
+        ),
+        public: this.booleanAttribute(
+          attributes[LangfuseOtelSpanAttributes.TRACE_PUBLIC],
+        ),
+      },
+    };
+  }
+
+  private toObservationEvent(span: ReadableSpan): IngestionEvent {
+    const attributes = span.attributes;
+    const observationType =
+      this.stringAttribute(
+        attributes[LangfuseOtelSpanAttributes.OBSERVATION_TYPE],
+      ) ?? "span";
+    const commonBody = {
+      id: span.spanContext().spanId,
+      traceId: span.spanContext().traceId,
+      name: span.name,
+      startTime: new Date(hrTimeToMilliseconds(span.startTime)).toISOString(),
+      endTime: new Date(hrTimeToMilliseconds(span.endTime)).toISOString(),
+      metadata: this.metadataAttributes(attributes, "observation"),
+      input: this.jsonAttribute(
+        attributes[LangfuseOtelSpanAttributes.OBSERVATION_INPUT],
+      ),
+      output: this.jsonAttribute(
+        attributes[LangfuseOtelSpanAttributes.OBSERVATION_OUTPUT],
+      ),
+      level: this.stringAttribute(
+        attributes[LangfuseOtelSpanAttributes.OBSERVATION_LEVEL],
+      ) as "DEBUG" | "DEFAULT" | "WARNING" | "ERROR" | undefined,
+      statusMessage: this.stringAttribute(
+        attributes[LangfuseOtelSpanAttributes.OBSERVATION_STATUS_MESSAGE],
+      ),
+      parentObservationId: span.parentSpanContext?.spanId,
+      version: this.stringAttribute(
+        attributes[LangfuseOtelSpanAttributes.VERSION],
+      ),
+      environment: this.stringAttribute(
+        attributes[LangfuseOtelSpanAttributes.ENVIRONMENT],
+      ),
+    };
+
+    if (observationType === "generation" || observationType === "embedding") {
+      return {
+        id: generateUUID(),
+        type: "generation-create",
+        timestamp: new Date(hrTimeToMilliseconds(span.endTime)).toISOString(),
+        body: {
+          ...commonBody,
+          completionStartTime: this.dateAttribute(
+            attributes[
+              LangfuseOtelSpanAttributes.OBSERVATION_COMPLETION_START_TIME
+            ],
+          ),
+          model: this.stringAttribute(
+            attributes[LangfuseOtelSpanAttributes.OBSERVATION_MODEL],
+          ),
+          modelParameters: this.recordAttribute(
+            attributes[LangfuseOtelSpanAttributes.OBSERVATION_MODEL_PARAMETERS],
+          ),
+          usageDetails: this.recordAttribute(
+            attributes[LangfuseOtelSpanAttributes.OBSERVATION_USAGE_DETAILS],
+          ),
+          costDetails: this.numberRecordAttribute(
+            attributes[LangfuseOtelSpanAttributes.OBSERVATION_COST_DETAILS],
+          ),
+          promptName: this.stringAttribute(
+            attributes[LangfuseOtelSpanAttributes.OBSERVATION_PROMPT_NAME],
+          ),
+          promptVersion: this.numberAttribute(
+            attributes[LangfuseOtelSpanAttributes.OBSERVATION_PROMPT_VERSION],
+          ),
+        },
+      };
+    }
+
+    if (observationType === "event") {
+      return {
+        id: generateUUID(),
+        type: "event-create",
+        timestamp: new Date(hrTimeToMilliseconds(span.endTime)).toISOString(),
+        body: commonBody,
+      };
+    }
+
+    return {
+      id: generateUUID(),
+      type: "span-create",
+      timestamp: new Date(hrTimeToMilliseconds(span.endTime)).toISOString(),
+      body: commonBody,
+    };
+  }
+
+  private stringAttribute(value: unknown): string | undefined {
+    return typeof value === "string" ? value : undefined;
+  }
+
+  private booleanAttribute(value: unknown): boolean | undefined {
+    return typeof value === "boolean" ? value : undefined;
+  }
+
+  private numberAttribute(value: unknown): number | undefined {
+    return typeof value === "number" ? value : undefined;
+  }
+
+  private dateAttribute(value: unknown): string | undefined {
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === "string") return value;
+
+    return undefined;
+  }
+
+  private stringArrayAttribute(value: unknown): string[] | undefined {
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === "string");
+    }
+
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed)
+          ? parsed.filter((item): item is string => typeof item === "string")
+          : undefined;
+      } catch {
+        return [value];
+      }
+    }
+
+    return undefined;
+  }
+
+  private jsonAttribute(value: unknown): unknown {
+    if (typeof value !== "string") return value;
+
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
+  private recordAttribute(value: unknown): Record<string, any> | undefined {
+    const parsed = this.jsonAttribute(value);
+
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, any>;
+    }
+
+    return undefined;
+  }
+
+  private numberRecordAttribute(
+    value: unknown,
+  ): Record<string, number> | undefined {
+    const parsed = this.recordAttribute(value);
+    if (!parsed) return undefined;
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, number] => typeof entry[1] === "number",
+      ),
+    );
+  }
+
+  private metadataAttributes(
+    attributes: ReadableSpan["attributes"],
+    type: "observation" | "trace",
+  ): unknown {
+    const prefix =
+      type === "observation"
+        ? LangfuseOtelSpanAttributes.OBSERVATION_METADATA
+        : LangfuseOtelSpanAttributes.TRACE_METADATA;
+    const direct = this.jsonAttribute(attributes[prefix]);
+    const flattened = Object.fromEntries(
+      Object.entries(attributes)
+        .filter(([key]) => key.startsWith(`${prefix}.`))
+        .map(([key, value]) => [key.slice(prefix.length + 1), value]),
+    );
+
+    if (Object.keys(flattened).length === 0) return direct;
+
+    return {
+      ...(direct && typeof direct === "object" && !Array.isArray(direct)
+        ? direct
+        : {}),
+      ...flattened,
+    };
+  }
+}
+
+function getNoauthProject(
+  auth: ReturnType<typeof resolveSeaTracesAuth>,
+):
+  | SeaTracesProject
+  | Promise<SeaTracesProject>
+  | (() => Promise<SeaTracesProject>) {
+  if (auth.mode === "gateway") return auth.project;
+  if (auth.mode === "project") {
+    return {
+      projectId: auth.projectId,
+      baseUrl: auth.baseUrl,
+    };
+  }
+
+  throw new Error("Sea Traces noauth export requires project configuration.");
 }
 
 /**
@@ -340,18 +605,15 @@ export class LangfuseSpanProcessor implements SpanProcessor {
     });
     const resolvedBaseUrl =
       auth.mode === "gateway"
-        ? () => auth.credentials.then((value) => value.baseUrl)
+        ? () => auth.project().then((value) => value.baseUrl)
         : auth.baseUrl;
+    const resolvedProjectId =
+      auth.mode === "gateway" ? auth.projectId : auth.projectId;
 
     const exporter =
       params?.exporter ??
-      (auth.mode === "gateway"
-        ? new LazySealangfuseOTLPTraceExporter({
-            credentials: auth.credentials,
-            timeoutSeconds,
-            additionalHeaders: params?.additionalHeaders,
-          })
-        : new OTLPTraceExporter({
+      (auth.mode === "direct" || auth.mode === "legacy-direct"
+        ? new OTLPTraceExporter({
             url: `${auth.baseUrl}/api/public/otel/v1/traces`,
             headers: {
               Authorization: `Basic ${base64Encode(
@@ -363,6 +625,11 @@ export class LangfuseSpanProcessor implements SpanProcessor {
               ...params?.additionalHeaders,
             },
             timeoutMillis: timeoutSeconds * 1_000,
+          })
+        : new SeaTracesNoauthSpanExporter({
+            project: getNoauthProject(auth),
+            timeoutSeconds,
+            additionalHeaders: params?.additionalHeaders,
           }));
 
     this.processor =
@@ -375,7 +642,10 @@ export class LangfuseSpanProcessor implements SpanProcessor {
               : undefined,
           });
 
-    this.publicKey = auth.mode === "gateway" ? undefined : auth.publicKey;
+    this.publicKey =
+      auth.mode === "direct" || auth.mode === "legacy-direct"
+        ? auth.publicKey
+        : undefined;
     this.baseUrl = auth.baseUrl;
     this.environment =
       params?.environment ?? getEnv("LANGFUSE_TRACING_ENVIRONMENT");
@@ -389,6 +659,7 @@ export class LangfuseSpanProcessor implements SpanProcessor {
       username: auth.publicKey,
       password: auth.secretKey,
       xLangfusePublicKey: auth.publicKey,
+      projectId: resolvedProjectId,
       xLangfuseSdkVersion: LANGFUSE_SDK_VERSION,
       xLangfuseSdkName: "javascript",
       environment: "", // noop as baseUrl is set

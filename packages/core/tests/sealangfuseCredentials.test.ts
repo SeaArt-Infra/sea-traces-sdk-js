@@ -49,14 +49,12 @@ describe("Sea Traces credential resolver", () => {
         expect(JSON.parse(String(init?.body))).toEqual({
           api_key: "sa-test",
           base_url: "https://sea-traces.example.com",
-          project_id: "project-test",
         });
 
         return new Response(
           JSON.stringify({
-            publicKey: "pk-lf-test",
-            secretKey: "sk-lf-test",
-            baseUrl: "https://upload.example.com",
+            project_id: "project-resolved",
+            base_url: "https://upload.example.com",
           }),
         );
       },
@@ -67,11 +65,9 @@ describe("Sea Traces credential resolver", () => {
       resolveSealangfuseCredentials({
         apiKey: "sa-test",
         baseUrl: "https://sea-traces.example.com",
-        projectId: "project-test",
       }),
     ).resolves.toEqual({
-      publicKey: "pk-lf-test",
-      secretKey: "sk-lf-test",
+      projectId: "project-resolved",
       baseUrl: "https://upload.example.com",
     });
   });
@@ -80,7 +76,7 @@ describe("Sea Traces credential resolver", () => {
     globalThis.fetch = vi.fn(async () => {
       return new Response(
         JSON.stringify({
-          publicKey: "pk-lf-test",
+          project_id: "project-test",
           baseUrl: "https://upload.example.com",
         }),
       );
@@ -90,12 +86,11 @@ describe("Sea Traces credential resolver", () => {
       resolveSealangfuseCredentials({
         apiKey: "sa-test",
         baseUrl: "https://sea-traces.example.com",
-        projectId: "project-test",
       }),
     ).rejects.toThrow("Invalid Sea Traces credentials response");
   });
 
-  it("deduplicates concurrent resolution for the same key, project, and URL", async () => {
+  it("deduplicates concurrent resolution for the same key and URL", async () => {
     let resolveResponse: (response: Response) => void = () => undefined;
     const responsePromise = new Promise<Response>((resolve) => {
       resolveResponse = resolve;
@@ -106,20 +101,17 @@ describe("Sea Traces credential resolver", () => {
     const first = resolveSealangfuseCredentials({
       apiKey: "sa-test",
       baseUrl: "https://sea-traces.example.com",
-      projectId: "project-test",
     });
     const second = resolveSealangfuseCredentials({
       apiKey: "sa-test",
       baseUrl: "https://sea-traces.example.com",
-      projectId: "project-test",
     });
 
     resolveResponse(
       new Response(
         JSON.stringify({
-          publicKey: "pk-lf-test",
-          secretKey: "sk-lf-test",
-          baseUrl: "https://upload.example.com",
+          project_id: "project-test",
+          base_url: "https://upload.example.com",
         }),
       ),
     );
@@ -130,45 +122,36 @@ describe("Sea Traces credential resolver", () => {
     await resolveSealangfuseCredentials({
       apiKey: "sa-test",
       baseUrl: "https://sea-traces.example.com",
-      projectId: "project-test",
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("includes project ID and credentials URL in the cache key", async () => {
-    const fetchMock = vi.fn(
-      async (url: URL | RequestInfo, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body));
-
-        return new Response(
-          JSON.stringify({
-            publicKey: String(url).includes("resolver-a")
-              ? "pk-lf-a"
-              : `pk-lf-${body.project_id}`,
-            secretKey: "sk-lf-test",
-            baseUrl: "https://upload.example.com",
-          }),
-        );
-      },
-    );
+  it("includes credentials URL in the cache key", async () => {
+    const fetchMock = vi.fn(async (url: URL | RequestInfo) => {
+      return new Response(
+        JSON.stringify({
+          project_id: String(url).includes("resolver-a")
+            ? "project-a"
+            : "project-b",
+          base_url: "https://upload.example.com",
+        }),
+      );
+    });
     globalThis.fetch = fetchMock as typeof fetch;
 
     await resolveSealangfuseCredentials({
       apiKey: "sa-test",
       baseUrl: "https://sea-traces.example.com",
-      projectId: "project-a",
       credentialsUrl: "https://resolver-a.example.com/credentials",
     });
     await resolveSealangfuseCredentials({
       apiKey: "sa-test",
       baseUrl: "https://sea-traces.example.com",
-      projectId: "project-a",
       credentialsUrl: "https://resolver-b.example.com/credentials",
     });
     await resolveSealangfuseCredentials({
-      apiKey: "sa-test",
+      apiKey: "sa-other",
       baseUrl: "https://sea-traces.example.com",
-      projectId: "project-b",
       credentialsUrl: "https://resolver-b.example.com/credentials",
     });
 
@@ -219,14 +202,12 @@ describe("Sea Traces credential resolver", () => {
     vi.stubEnv("SEATRACES_PUBLIC_KEY", "pk-lf-stale");
     vi.stubEnv("SEA_TRACES_API_KEY", "sa-env");
     vi.stubEnv("SEA_TRACES_BASE_URL", "https://gateway.example.com");
-    vi.stubEnv("SEA_TRACES_PROJECT_ID", "project-env");
 
     const fetchMock = vi.fn(async () => {
       return new Response(
         JSON.stringify({
-          publicKey: "pk-lf-resolved",
-          secretKey: "sk-lf-resolved",
-          baseUrl: "https://upload.example.com",
+          project_id: "project-resolved",
+          base_url: "https://upload.example.com",
         }),
       );
     });
@@ -237,8 +218,7 @@ describe("Sea Traces credential resolver", () => {
     expect(auth.mode).toBe("gateway");
     if (auth.mode !== "gateway") throw new Error("Expected gateway auth");
 
-    await expect(auth.publicKey()).resolves.toBe("pk-lf-resolved");
-    await expect(auth.secretKey()).resolves.toBe("sk-lf-resolved");
+    await expect(auth.projectId()).resolves.toBe("project-resolved");
     expect(fetchMock.mock.calls[0] as FetchCall).toBeDefined();
   });
 
@@ -264,18 +244,38 @@ describe("Sea Traces credential resolver", () => {
     vi.stubEnv("LANGFUSE_BASE_URL", "https://legacy.example.com");
 
     expect(() => resolveSeaTracesAuth()).toThrow(
-      "Sea Traces gateway authentication requires apiKey, baseUrl, and projectId",
+      "Sea Traces gateway authentication requires apiKey and baseUrl",
     );
   });
 
-  it("throws when auth config is incomplete", () => {
+  it("uses internal project config when provided", () => {
+    const auth = resolveSeaTracesAuth({
+      projectId: "project-test",
+      baseUrl: "https://upload.example.com",
+    });
+
+    expect(auth).toMatchObject({
+      mode: "project",
+      projectId: "project-test",
+      baseUrl: "https://upload.example.com",
+    });
+  });
+
+  it("explicit apiKey and projectId still uses gateway mode", () => {
+    const auth = resolveSeaTracesAuth({
+      apiKey: "sa-test",
+      projectId: "project-test",
+      baseUrl: "https://gateway.example.com",
+    });
+
+    expect(auth.mode).toBe("gateway");
+  });
+
+  it("throws when gateway config is incomplete", () => {
     expect(() =>
       resolveSeaTracesAuth({
         apiKey: "sa-test",
-        baseUrl: "https://gateway.example.com",
       }),
-    ).toThrow(
-      "Sea Traces gateway authentication requires apiKey, baseUrl, and projectId",
-    );
+    ).toThrow("Sea Traces gateway authentication requires apiKey and baseUrl");
   });
 });

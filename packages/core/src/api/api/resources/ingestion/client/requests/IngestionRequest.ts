@@ -61,6 +61,8 @@ import * as LangfuseAPI from "../../../../index.js";
  *     }
  */
 export interface IngestionRequest {
+  /** Sea Traces project ID used by noauth ingestion. */
+  project_id?: string;
   /** Batch of tracing events to be ingested. Discriminated by attribute `type`. */
   batch: LangfuseAPI.IngestionEvent[];
   /** Optional. Metadata field used by the Langfuse SDKs for debugging. */

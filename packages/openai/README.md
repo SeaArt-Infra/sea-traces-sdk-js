@@ -14,17 +14,23 @@ OpenAI SDK integration for Sea Traces.
 
 ## Required Configuration
 
-For gateway authentication, set all three values before using the integration,
-or pass them as `apiKey`, `baseUrl`, and `projectId` options where the wrapper
-accepts SDK configuration.
+For external gateway authentication, set these values before using the
+integration, or pass `apiKey` and `baseUrl` where the wrapper accepts SDK
+configuration.
 
 ```bash
 SEA_TRACES_API_KEY=sea-traces-api-key
 SEA_TRACES_BASE_URL=https://your-sea-traces.example.com
-SEA_TRACES_PROJECT_ID=project-id
 ```
 
-For direct upload authentication, set:
+Internal project-based ingestion:
+
+```bash
+SEATRACES_PROJECT_ID=project-id
+SEATRACES_BASE_URL=https://upload.sea-traces.example.com
+```
+
+For legacy direct upload authentication, set:
 
 ```bash
 SEATRACES_PUBLIC_KEY=public-upload-key

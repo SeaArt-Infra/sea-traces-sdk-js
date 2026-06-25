@@ -6,10 +6,14 @@ export interface SealangfuseCredentials {
   baseUrl: string;
 }
 
+export interface SeaTracesProject {
+  projectId: string;
+  baseUrl: string;
+}
+
 export interface ResolveSealangfuseCredentialsParams {
   apiKey: string;
   baseUrl: string;
-  projectId: string;
   credentialsUrl?: string;
   timeoutSeconds?: number;
 }
@@ -30,18 +34,31 @@ export type SeaTracesAuth =
       publicKey: string;
       secretKey: string;
       baseUrl: string;
+      projectId?: undefined;
+      project?: undefined;
+      credentials?: undefined;
+    }
+  | {
+      mode: "project";
+      baseUrl: string;
+      projectId: string;
+      publicKey?: undefined;
+      secretKey?: undefined;
+      project?: undefined;
       credentials?: undefined;
     }
   | {
       mode: "gateway";
-      publicKey: () => Promise<string>;
-      secretKey: () => Promise<string>;
+      projectId: () => Promise<string>;
       baseUrl: string;
-      credentials: Promise<SealangfuseCredentials>;
+      project: () => Promise<SeaTracesProject>;
+      publicKey?: undefined;
+      secretKey?: undefined;
+      credentials?: undefined;
     };
 
-const credentialsCache = new Map<string, SealangfuseCredentials>();
-const credentialsInflight = new Map<string, Promise<SealangfuseCredentials>>();
+const credentialsCache = new Map<string, SeaTracesProject>();
+const credentialsInflight = new Map<string, Promise<SeaTracesProject>>();
 
 function maskApiKey(apiKey: string): string {
   if (apiKey.length <= 10) return "<masked>";
@@ -82,13 +99,11 @@ function hasAnyDirectConfig(params: {
 function hasCompleteGatewayConfig(params: {
   apiKey?: string;
   baseUrl?: string;
-  projectId?: string;
 }): params is {
   apiKey: string;
   baseUrl: string;
-  projectId: string;
 } {
-  return Boolean(params.apiKey && params.baseUrl && params.projectId);
+  return Boolean(params.apiKey && params.baseUrl);
 }
 
 function hasAnyGatewayConfig(params: {
@@ -96,13 +111,13 @@ function hasAnyGatewayConfig(params: {
   baseUrl?: string;
   projectId?: string;
 }): boolean {
-  return Boolean(params.apiKey || params.baseUrl || params.projectId);
+  return Boolean(params.apiKey);
 }
 
 function incompleteGatewayConfigError(): Error {
   return new Error(
-    "Sea Traces gateway authentication requires apiKey, baseUrl, and projectId " +
-      "or SEA_TRACES_API_KEY, SEA_TRACES_BASE_URL, and SEA_TRACES_PROJECT_ID.",
+    "Sea Traces gateway authentication requires apiKey and baseUrl " +
+      "or SEA_TRACES_API_KEY and SEA_TRACES_BASE_URL.",
   );
 }
 
@@ -117,15 +132,26 @@ export function getSealangfuseCredentialsUrl(params: {
 
 function getCacheKey(params: {
   apiKey: string;
-  projectId: string;
   credentialsUrl: string;
 }): string {
-  return `${params.credentialsUrl}\n${params.projectId}\n${params.apiKey}`;
+  return `${params.credentialsUrl}\n${params.apiKey}`;
+}
+
+function createLazyProjectResolver(
+  params: ResolveSealangfuseCredentialsParams,
+): () => Promise<SeaTracesProject> {
+  let project: Promise<SeaTracesProject> | undefined;
+
+  return () => {
+    project ??= resolveSealangfuseCredentials(params);
+
+    return project;
+  };
 }
 
 async function fetchSealangfuseCredentials(
   params: ResolveSealangfuseCredentialsParams,
-): Promise<SealangfuseCredentials> {
+): Promise<SeaTracesProject> {
   const credentialsUrl = getSealangfuseCredentialsUrl(params);
   const controller = new AbortController();
   const timeout = setTimeout(
@@ -140,11 +166,11 @@ async function fetchSealangfuseCredentials(
       method: "POST",
       headers: {
         "content-type": "application/json",
+        accept: "application/json",
       },
       body: JSON.stringify({
         api_key: params.apiKey,
         base_url: params.baseUrl,
-        project_id: params.projectId,
       }),
       signal: controller.signal,
     });
@@ -164,9 +190,12 @@ async function fetchSealangfuseCredentials(
     throw new Error(message);
   }
 
-  let body: Partial<SealangfuseCredentials>;
+  let body: { project_id?: string; base_url?: string };
   try {
-    body = (await response.json()) as Partial<SealangfuseCredentials>;
+    body = (await response.json()) as {
+      project_id?: string;
+      base_url?: string;
+    };
   } catch (error) {
     const message = `Invalid Sea Traces credentials response from ${credentialsUrl} for key ${maskApiKey(
       params.apiKey,
@@ -174,7 +203,10 @@ async function fetchSealangfuseCredentials(
     throw new Error(message);
   }
 
-  if (!body.publicKey || !body.secretKey || !body.baseUrl) {
+  const projectId = getRequiredConfig(body.project_id);
+  const baseUrl = getRequiredConfig(body.base_url);
+
+  if (!projectId || !baseUrl) {
     const message = `Invalid Sea Traces credentials response from ${credentialsUrl} for key ${maskApiKey(
       params.apiKey,
     )}`;
@@ -182,19 +214,17 @@ async function fetchSealangfuseCredentials(
   }
 
   return {
-    publicKey: body.publicKey,
-    secretKey: body.secretKey,
-    baseUrl: body.baseUrl,
+    projectId,
+    baseUrl,
   };
 }
 
 export function resolveSealangfuseCredentials(
   params: ResolveSealangfuseCredentialsParams,
-): Promise<SealangfuseCredentials> {
+): Promise<SeaTracesProject> {
   const credentialsUrl = getSealangfuseCredentialsUrl(params);
   const cacheKey = getCacheKey({
     apiKey: params.apiKey,
-    projectId: params.projectId,
     credentialsUrl,
   });
   const cached = credentialsCache.get(cacheKey);
@@ -255,7 +285,6 @@ export function resolveSeaTracesAuth(
   const gatewayConfig = {
     apiKey: getRequiredConfig(params.apiKey),
     baseUrl: getRequiredConfig(params.baseUrl),
-    projectId: getRequiredConfig(params.projectId),
   };
 
   if (
@@ -266,27 +295,50 @@ export function resolveSeaTracesAuth(
   }
 
   if (hasCompleteGatewayConfig(gatewayConfig)) {
-    const credentials = resolveSealangfuseCredentials({
+    const project = createLazyProjectResolver({
       apiKey: gatewayConfig.apiKey,
       baseUrl: gatewayConfig.baseUrl,
-      projectId: gatewayConfig.projectId,
       credentialsUrl: params.credentialsUrl,
       timeoutSeconds: params.timeoutSeconds,
     });
 
     return {
       mode: "gateway",
-      publicKey: () => credentials.then((value) => value.publicKey),
-      secretKey: () => credentials.then((value) => value.secretKey),
+      projectId: () => project().then((value) => value.projectId),
       baseUrl: gatewayConfig.baseUrl,
-      credentials,
+      project,
+    };
+  }
+
+  const projectConfig = {
+    projectId: getRequiredConfig(params.projectId),
+    baseUrl: getRequiredConfig(params.baseUrl),
+  };
+
+  if (projectConfig.projectId && projectConfig.baseUrl) {
+    return {
+      mode: "project",
+      projectId: projectConfig.projectId,
+      baseUrl: projectConfig.baseUrl,
+    };
+  }
+
+  const projectEnvConfig = {
+    projectId: getRequiredConfig(getEnv("SEATRACES_PROJECT_ID")),
+    baseUrl: getRequiredConfig(getEnv("SEATRACES_BASE_URL")),
+  };
+
+  if (projectEnvConfig.projectId && projectEnvConfig.baseUrl) {
+    return {
+      mode: "project",
+      projectId: projectEnvConfig.projectId,
+      baseUrl: projectEnvConfig.baseUrl,
     };
   }
 
   const gatewayEnvConfig = {
     apiKey: getRequiredConfig(getEnv("SEA_TRACES_API_KEY")),
     baseUrl: getRequiredConfig(getEnv("SEA_TRACES_BASE_URL")),
-    projectId: getRequiredConfig(getEnv("SEA_TRACES_PROJECT_ID")),
   };
 
   if (
@@ -297,20 +349,18 @@ export function resolveSeaTracesAuth(
   }
 
   if (hasCompleteGatewayConfig(gatewayEnvConfig)) {
-    const credentials = resolveSealangfuseCredentials({
+    const project = createLazyProjectResolver({
       apiKey: gatewayEnvConfig.apiKey,
       baseUrl: gatewayEnvConfig.baseUrl,
-      projectId: gatewayEnvConfig.projectId,
       credentialsUrl: params.credentialsUrl,
       timeoutSeconds: params.timeoutSeconds,
     });
 
     return {
       mode: "gateway",
-      publicKey: () => credentials.then((value) => value.publicKey),
-      secretKey: () => credentials.then((value) => value.secretKey),
+      projectId: () => project().then((value) => value.projectId),
       baseUrl: gatewayEnvConfig.baseUrl,
-      credentials,
+      project,
     };
   }
 
@@ -338,9 +388,10 @@ export function resolveSeaTracesAuth(
   throw new Error(
     "Sea Traces authentication requires complete direct credentials " +
       "(publicKey, secretKey, baseUrl or SEATRACES_PUBLIC_KEY, " +
-      "SEATRACES_SECRET_KEY, SEATRACES_BASE_URL) or complete gateway " +
-      "credentials (apiKey, baseUrl, projectId or SEA_TRACES_API_KEY, " +
-      "SEA_TRACES_BASE_URL, SEA_TRACES_PROJECT_ID).",
+      "SEATRACES_SECRET_KEY, SEATRACES_BASE_URL), internal project " +
+      "configuration (projectId, baseUrl or SEATRACES_PROJECT_ID, " +
+      "SEATRACES_BASE_URL), or gateway credentials (apiKey, baseUrl or " +
+      "SEA_TRACES_API_KEY, SEA_TRACES_BASE_URL).",
   );
 }
 

@@ -44,6 +44,8 @@ export declare namespace LangfuseAPIClient {
     xLangfuseSdkVersion?: core.Supplier<string | undefined>;
     /** Override the X-Langfuse-Public-Key header */
     xLangfusePublicKey?: core.Supplier<string | undefined>;
+    /** Sea Traces project ID for noauth ingestion. */
+    projectId?: core.Supplier<string | undefined>;
     /** Additional headers to include in requests. */
     headers?: Record<
       string,

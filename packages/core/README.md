@@ -15,10 +15,13 @@ packages.
 
 ## Required Configuration
 
-User-facing packages require either direct upload credentials
-(`SEATRACES_PUBLIC_KEY`, `SEATRACES_SECRET_KEY`, `SEATRACES_BASE_URL`) or
-gateway credentials (`SEA_TRACES_API_KEY`, `SEA_TRACES_BASE_URL`,
-`SEA_TRACES_PROJECT_ID`).
+User-facing packages require one of:
+
+- internal project configuration (`SEATRACES_PROJECT_ID`,
+  `SEATRACES_BASE_URL`)
+- gateway credentials (`SEA_TRACES_API_KEY`, `SEA_TRACES_BASE_URL`)
+- legacy direct upload credentials (`SEATRACES_PUBLIC_KEY`,
+  `SEATRACES_SECRET_KEY`, `SEATRACES_BASE_URL`)
 
 ## 文档
 

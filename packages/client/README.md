@@ -15,16 +15,21 @@ main abstraction around prompts, datasets, and scores.
 
 ## Required Configuration
 
-For gateway authentication, set all three values before constructing the SDK,
-or pass them as `apiKey`, `baseUrl`, and `projectId` constructor options.
+For external gateway authentication, set:
 
 ```bash
 SEA_TRACES_API_KEY=sea-traces-api-key
 SEA_TRACES_BASE_URL=https://your-sea-traces.example.com
-SEA_TRACES_PROJECT_ID=project-id
 ```
 
-For direct upload authentication, set:
+For internal project-based ingestion, set:
+
+```bash
+SEATRACES_PROJECT_ID=project-id
+SEATRACES_BASE_URL=https://upload.sea-traces.example.com
+```
+
+For legacy direct upload authentication, set:
 
 ```bash
 SEATRACES_PUBLIC_KEY=public-upload-key

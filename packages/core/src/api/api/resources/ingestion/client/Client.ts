@@ -23,6 +23,8 @@ export declare namespace Ingestion {
     xLangfuseSdkVersion?: core.Supplier<string | undefined>;
     /** Override the X-Langfuse-Public-Key header */
     xLangfusePublicKey?: core.Supplier<string | undefined>;
+    /** Sea Traces project ID for noauth ingestion. */
+    projectId?: core.Supplier<string | undefined>;
     /** Additional headers to include in requests. */
     headers?: Record<
       string,
@@ -154,33 +156,58 @@ export class Ingestion {
     request: LangfuseAPI.IngestionRequest,
     requestOptions?: Ingestion.RequestOptions,
   ): Promise<core.WithRawResponse<LangfuseAPI.IngestionResponse>> {
+    const projectId = await core.Supplier.get(this._options.projectId);
+    const isNoauthIngestion = projectId != null && projectId.trim() !== "";
     let _headers: core.Fetcher.Args["headers"] = mergeHeaders(
       this._options?.headers,
       mergeOnlyDefinedHeaders({
-        Authorization: await this._getAuthorizationHeader(),
+        Authorization: isNoauthIngestion
+          ? undefined
+          : await this._getAuthorizationHeader(),
         "X-Langfuse-Sdk-Name":
           requestOptions?.xLangfuseSdkName ?? this._options?.xLangfuseSdkName,
         "X-Langfuse-Sdk-Version":
           requestOptions?.xLangfuseSdkVersion ??
           this._options?.xLangfuseSdkVersion,
-        "X-Langfuse-Public-Key":
-          requestOptions?.xLangfusePublicKey ??
-          this._options?.xLangfusePublicKey,
+        "X-Langfuse-Public-Key": isNoauthIngestion
+          ? undefined
+          : (requestOptions?.xLangfusePublicKey ??
+            this._options?.xLangfusePublicKey),
       }),
       requestOptions?.headers,
     );
+
+    if (isNoauthIngestion) {
+      for (const header of Object.keys(_headers)) {
+        const normalizedHeader = header.toLowerCase();
+        if (
+          normalizedHeader === "authorization" ||
+          normalizedHeader === "x-langfuse-public-key"
+        ) {
+          delete _headers[header];
+        }
+      }
+    }
+
     const _response = await core.fetcher({
       url: core.url.join(
         (await core.Supplier.get(this._options.baseUrl)) ??
           (await core.Supplier.get(this._options.environment)),
-        "/api/public/ingestion",
+        isNoauthIngestion
+          ? "/api/public/ingestion-noauth"
+          : "/api/public/ingestion",
       ),
       method: "POST",
       headers: _headers,
       contentType: "application/json",
       queryParameters: requestOptions?.queryParams,
       requestType: "json",
-      body: request,
+      body: isNoauthIngestion
+        ? {
+            project_id: projectId,
+            batch: request.batch,
+          }
+        : request,
       timeoutMs:
         requestOptions?.timeoutInSeconds != null
           ? requestOptions.timeoutInSeconds * 1000
@@ -240,7 +267,9 @@ export class Ingestion {
         });
       case "timeout":
         throw new errors.LangfuseAPITimeoutError(
-          "Timeout exceeded when calling POST /api/public/ingestion.",
+          isNoauthIngestion
+            ? "Timeout exceeded when calling POST /api/public/ingestion-noauth."
+            : "Timeout exceeded when calling POST /api/public/ingestion.",
         );
       case "unknown":
         throw new errors.LangfuseAPIError({

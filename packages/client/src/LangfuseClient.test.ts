@@ -48,7 +48,7 @@ describe("LangfuseClient Sealangfuse credentials", () => {
     });
   });
 
-  it("resolves gateway credentials and uses the resolved upload base URL", async () => {
+  it("resolves gateway project and posts ingestion without auth", async () => {
     const fetchMock = vi.fn(
       async (url: URL | RequestInfo, init?: RequestInit) => {
         if (
@@ -57,23 +57,31 @@ describe("LangfuseClient Sealangfuse credentials", () => {
           expect(JSON.parse(String(init?.body))).toEqual({
             api_key: "sa-test",
             base_url: "https://gateway.example.com",
-            project_id: "project-test",
           });
 
           return new Response(
             JSON.stringify({
-              publicKey: "pk-lf-resolved",
-              secretKey: "sk-lf-resolved",
-              baseUrl: "https://upload.example.com",
+              project_id: "project-resolved",
+              base_url: "https://upload.example.com",
             }),
           );
         }
 
         expect(String(url)).toBe(
-          "https://upload.example.com/api/public/projects",
+          "https://upload.example.com/api/public/ingestion-noauth",
         );
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          project_id: "project-resolved",
+          batch: [
+            {
+              type: "score-create",
+            },
+          ],
+        });
+        expect(init?.headers).not.toHaveProperty("Authorization");
+        expect(init?.headers).not.toHaveProperty("X-Langfuse-Public-Key");
 
-        return new Response(JSON.stringify({ data: [] }));
+        return new Response(JSON.stringify({ successes: [], errors: [] }));
       },
     );
     globalThis.fetch = fetchMock as typeof fetch;
@@ -84,24 +92,16 @@ describe("LangfuseClient Sealangfuse credentials", () => {
       projectId: "project-test",
     });
 
-    await client.api.projects.get();
+    client.score.create({ traceId: "trace-test", name: "quality", value: 1 });
+    await client.flush();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(
-      (fetchMock.mock.calls[1] as unknown as FetchCall | undefined)?.[1]
-        ?.headers,
-    ).toMatchObject({
-      Authorization: `Basic ${base64Encode("pk-lf-resolved:sk-lf-resolved")}`,
-      "X-Langfuse-Public-Key": "pk-lf-resolved",
-    });
   });
 
-  it("requires complete direct or gateway credentials", () => {
+  it("requires complete auth credentials", () => {
     expect(
       () => new LangfuseClient({ baseUrl: "https://sea-traces.example.com" }),
-    ).toThrow(
-      "Sea Traces gateway authentication requires apiKey, baseUrl, and projectId",
-    );
+    ).toThrow("Sea Traces authentication requires complete direct credentials");
   });
 
   it("does not use legacy SEALANGFUSE_API_KEY as gateway auth", () => {
@@ -113,10 +113,9 @@ describe("LangfuseClient Sealangfuse credentials", () => {
     );
   });
 
-  it("uses SEA_TRACES_API_KEY, SEA_TRACES_BASE_URL, and SEA_TRACES_PROJECT_ID env vars", async () => {
+  it("uses SEA_TRACES_API_KEY and SEA_TRACES_BASE_URL env vars", async () => {
     vi.stubEnv("SEA_TRACES_API_KEY", "sea-traces-env");
     vi.stubEnv("SEA_TRACES_BASE_URL", "https://gateway.example.com");
-    vi.stubEnv("SEA_TRACES_PROJECT_ID", "project-env");
 
     const fetchMock = vi.fn(async (url: URL | RequestInfo) => {
       if (
@@ -124,26 +123,95 @@ describe("LangfuseClient Sealangfuse credentials", () => {
       ) {
         return new Response(
           JSON.stringify({
-            publicKey: "pk-lf-env",
-            secretKey: "sk-lf-env",
-            baseUrl: "https://upload-env.example.com",
+            project_id: "project-env",
+            base_url: "https://upload-env.example.com",
           }),
         );
       }
 
       expect(String(url)).toBe(
-        "https://upload-env.example.com/api/public/projects",
+        "https://upload-env.example.com/api/public/ingestion-noauth",
       );
 
-      return new Response(JSON.stringify({ data: [] }));
+      return new Response(JSON.stringify({ successes: [], errors: [] }));
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
     const client = new LangfuseClient();
 
-    await client.api.projects.get();
+    client.score.create({ traceId: "trace-test", name: "quality", value: 1 });
+    await client.flush();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses internal SEATRACES project env vars without calling the resolver", async () => {
+    vi.stubEnv("SEATRACES_PROJECT_ID", "project-env");
+    vi.stubEnv("SEATRACES_BASE_URL", "https://upload-env.example.com");
+
+    const fetchMock = vi.fn(
+      async (url: URL | RequestInfo, init?: RequestInit) => {
+        expect(String(url)).toBe(
+          "https://upload-env.example.com/api/public/ingestion-noauth",
+        );
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          project_id: "project-env",
+        });
+        expect(init?.headers).not.toHaveProperty("Authorization");
+
+        return new Response(JSON.stringify({ successes: [], errors: [] }));
+      },
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new LangfuseClient();
+
+    client.score.create({ traceId: "trace-test", name: "quality", value: 1 });
+    await client.flush();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("strips auth headers case-insensitively for noauth ingestion", async () => {
+    vi.stubEnv("SEATRACES_PROJECT_ID", "project-env");
+    vi.stubEnv("SEATRACES_BASE_URL", "https://upload-env.example.com");
+
+    const fetchMock = vi.fn(
+      async (url: URL | RequestInfo, init?: RequestInit) => {
+        expect(String(url)).toBe(
+          "https://upload-env.example.com/api/public/ingestion-noauth",
+        );
+
+        const normalizedHeaderNames = Object.keys(
+          init?.headers as Record<string, unknown>,
+        ).map((header) => header.toLowerCase());
+
+        expect(normalizedHeaderNames).not.toContain("authorization");
+        expect(normalizedHeaderNames).not.toContain("x-langfuse-public-key");
+
+        return new Response(JSON.stringify({ successes: [], errors: [] }));
+      },
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new LangfuseClient({
+      additionalHeaders: {
+        AUTHORIZATION: "Bearer should-not-be-sent",
+        "x-Langfuse-public-key": "pk-should-not-be-sent",
+      },
+    });
+
+    await client.api.ingestion.batch(
+      { batch: [] },
+      {
+        headers: {
+          Authorization: "Basic should-not-be-sent",
+          "X-Langfuse-Public-Key": "pk-should-not-be-sent",
+        },
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("uses SEATRACES direct env vars without calling the resolver", async () => {
@@ -152,7 +220,6 @@ describe("LangfuseClient Sealangfuse credentials", () => {
     vi.stubEnv("SEATRACES_BASE_URL", "https://upload-direct.example.com");
     vi.stubEnv("SEA_TRACES_API_KEY", "sea-traces-env");
     vi.stubEnv("SEA_TRACES_BASE_URL", "https://gateway.example.com");
-    vi.stubEnv("SEA_TRACES_PROJECT_ID", "project-env");
 
     const fetchMock = vi.fn(async (url: URL | RequestInfo) => {
       expect(String(url)).toBe(

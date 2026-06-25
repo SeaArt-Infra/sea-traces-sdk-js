@@ -45,8 +45,8 @@ export interface LangfuseClientParams {
   baseUrl?: string;
 
   /**
-   * Sea Traces project ID for gateway authentication.
-   * Can also be provided via SEA_TRACES_PROJECT_ID environment variable.
+   * Sea Traces project ID for project-based noauth ingestion.
+   * Can also be provided via SEATRACES_PROJECT_ID environment variable.
    */
   projectId?: string;
 
@@ -270,8 +270,9 @@ export class LangfuseClient {
    * });
    *
    * // Using environment variables
-   * // SEA_TRACES_API_KEY, SEA_TRACES_BASE_URL, and SEA_TRACES_PROJECT_ID
-   * // must all be set for gateway authentication.
+   * // SEA_TRACES_API_KEY and SEA_TRACES_BASE_URL must be set for gateway
+   * // authentication, or SEATRACES_PROJECT_ID and SEATRACES_BASE_URL for
+   * // internal project-based ingestion.
    * const client = new LangfuseClient();
    * ```
    */
@@ -291,8 +292,10 @@ export class LangfuseClient {
     });
     const resolvedBaseUrl =
       auth.mode === "gateway"
-        ? () => auth.credentials.then((value) => value.baseUrl)
+        ? () => auth.project().then((value) => value.baseUrl)
         : auth.baseUrl;
+    const resolvedProjectId =
+      auth.mode === "gateway" ? auth.projectId : auth.projectId;
 
     this.baseUrl = auth.baseUrl;
 
@@ -301,6 +304,7 @@ export class LangfuseClient {
       username: auth.publicKey,
       password: auth.secretKey,
       xLangfusePublicKey: auth.publicKey,
+      projectId: resolvedProjectId,
       xLangfuseSdkVersion: LANGFUSE_SDK_VERSION,
       xLangfuseSdkName: "javascript",
       environment: "", // noop as baseUrl is set
