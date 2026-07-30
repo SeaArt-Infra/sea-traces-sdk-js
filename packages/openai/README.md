@@ -38,10 +38,10 @@ SEATRACES_SECRET_KEY=secret-upload-key
 SEATRACES_BASE_URL=https://upload.sea-traces.example.com
 ```
 
-## 文档
+## Documentation
 
-- 根 README: ../../README.md
-- 配置说明: ../../README.md#推荐配置
+- Root README: ../../README.md
+- Configuration: ../../README.md#gateway-api
 
 ## License
 

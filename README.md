@@ -1,214 +1,54 @@
-# Sea Traces JS/TS SDK
+# Sea Traces JavaScript SDK
 
-[MIT License](https://opensource.org/licenses/MIT)
+The Sea Traces JavaScript/TypeScript monorepo provides tracing, OpenTelemetry
+export, integrations, and a gateway-authenticated project API client.
 
-Sea Traces JavaScript / TypeScript SDK monorepo，提供统一的 trace 采集和导出能力，对外暴露 Sea Traces 包名、客户端和配置方式。
+## Packages
 
-## 安装
+| Package                 | Purpose                                |
+| ----------------------- | -------------------------------------- |
+| `@sea-traces/client`    | Universal client and project/trace API |
+| `@sea-traces/tracing`   | OpenTelemetry tracing helpers          |
+| `@sea-traces/otel`      | OpenTelemetry exporter                 |
+| `@sea-traces/openai`    | OpenAI integration                     |
+| `@sea-traces/langchain` | LangChain integration                  |
 
-当前 Sea Traces JS/TS 包只能通过 GitHub 仓库地址安装，暂不从 npm registry
-安装。由于仓库内部包之间使用 `workspace:^` 依赖，业务项目需要在 `package.json`
-里用 `pnpm.overrides` 把内部依赖也指向同一个 GitHub 仓库。
+## Gateway API
 
-主客户端包：
+```ts
+import { SeaTracesApiClient } from "@sea-traces/client";
 
-```json
-{
-  "dependencies": {
-    "@sea-traces/client": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/client"
-  },
-  "pnpm": {
-    "overrides": {
-      "@sea-traces/core": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/core",
-      "@sea-traces/tracing": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/tracing"
-    }
-  }
-}
+const api = new SeaTracesApiClient({
+  baseUrl: "https://gateway.example.com",
+  token: "token",
+});
+
+const projects = await api.listProjects();
+const project = await api.createProject("checkout");
+await api.updateProject(project.id, "checkout-v2");
+await api.ingest(project.id, [
+  { type: "trace-create", body: { id: "trace-1", name: "checkout" } },
+]);
+const traces = await api.listTraces(project.id, { traceId: "trace-1" });
 ```
 
-OpenTelemetry 导出辅助包：
+All requests use `Authorization: Bearer <token>`. Trace queries accept
+`traceId`, `fromTimestamp`, `toTimestamp`, `page`, and `limit`. Without a time
+range, the server queries the most recent 24 hours.
 
-```json
-{
-  "dependencies": {
-    "@sea-traces/otel": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/otel"
-  },
-  "pnpm": {
-    "overrides": {
-      "@sea-traces/core": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/core"
-    }
-  }
-}
-```
-
-集成包需要同时安装对应 integration package 和它依赖的 Sea Traces 内部包：
-
-```json
-{
-  "dependencies": {
-    "@sea-traces/openai": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/openai"
-  },
-  "pnpm": {
-    "overrides": {
-      "@sea-traces/core": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/core",
-      "@sea-traces/tracing": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/tracing"
-    }
-  }
-}
-```
-
-LangChain 集成：
-
-```json
-{
-  "dependencies": {
-    "@sea-traces/langchain": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/langchain"
-  },
-  "pnpm": {
-    "overrides": {
-      "@sea-traces/core": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/core",
-      "@sea-traces/tracing": "git+https://github.com/SeaArt-Infra/sea-traces-sdk-js.git#path:/packages/tracing"
-    }
-  }
-}
-```
-
-配置完成后执行：
+## Development
 
 ```bash
 pnpm install
+pnpm build
+pnpm test
+pnpm lint
 ```
 
-## 包列表
+Do not commit or log bearer tokens. See
+[`docs/sea-traces-sdk-js-skill.md`](docs/sea-traces-sdk-js-skill.md) for
+agent-assisted usage guidance.
 
-| Package                                       | 说明                                               | 运行环境     |
-| --------------------------------------------- | -------------------------------------------------- | ------------ |
-| [@sea-traces/client](./packages/client)       | 适用于通用 JavaScript 环境的 Sea Traces API 客户端 | Universal JS |
-| [@sea-traces/tracing](./packages/tracing)     | 基于 OpenTelemetry 的 Sea Traces tracing 方法      | Node.js 20+  |
-| [@sea-traces/otel](./packages/otel)           | Sea Traces OpenTelemetry 导出辅助包                | Node.js 20+  |
-| [@sea-traces/openai](./packages/openai)       | OpenAI SDK 集成                                    | Universal JS |
-| [@sea-traces/langchain](./packages/langchain) | LangChain 集成                                     | Universal JS |
+## License
 
-## 适用版本
-
-支持以下配置的 SDK 版本可使用本文档中的方式：
-
-- 内部项目环境变量：`SEATRACES_PROJECT_ID`、`SEATRACES_BASE_URL`
-- Gateway 环境变量：`SEA_TRACES_API_KEY`、`SEA_TRACES_BASE_URL`
-- 兼容直传环境变量：`SEATRACES_PUBLIC_KEY`、`SEATRACES_SECRET_KEY`、`SEATRACES_BASE_URL`
-- 构造参数：`projectId`、`baseUrl`，`apiKey`、`baseUrl`，或兼容的 `publicKey`、`secretKey`、`baseUrl`
-
-必须完整配置其中一种模式。没有配置时，SDK 不能正常初始化，也不会上报 trace、
-span、score、prompt 等数据。
-
-## 推荐配置
-
-外部用户推荐使用 Gateway 认证。生产和测试环境都必须显式配置
-`SEA_TRACES_API_KEY` 和 `SEA_TRACES_BASE_URL`，SDK 会解析项目 ID 和最终上报地址。
-
-```bash
-export SEA_TRACES_API_KEY="sea-traces-api-key"
-export SEA_TRACES_BASE_URL="https://your-sea-traces.example.com"
-```
-
-内部用户推荐使用项目直传 noauth 模式：
-
-```bash
-export SEATRACES_PROJECT_ID="project-id"
-export SEATRACES_BASE_URL="https://upload.sea-traces.example.com"
-```
-
-如果已经持有 legacy 上传凭证，可以继续使用兼容直传模式：
-
-```bash
-export SEATRACES_PUBLIC_KEY="public-upload-key"
-export SEATRACES_SECRET_KEY="secret-upload-key"
-export SEATRACES_BASE_URL="https://upload.sea-traces.example.com"
-```
-
-## 快速开始
-
-下面的代码会从环境变量读取 Gateway 或内部项目配置，后续调用会上传到
-`/api/public/ingestion-noauth`。
-
-```ts
-import { SeaTracesClient } from "@sea-traces/client";
-
-const client = new SeaTracesClient();
-
-client.score.create({ traceId: "trace-id", name: "quality", value: 1 });
-await client.flush();
-```
-
-如果配置来自配置中心或运行时上下文，可以在构造函数中传入：
-
-```ts
-import { SeaTracesClient } from "@sea-traces/client";
-
-const client = new SeaTracesClient({
-  apiKey: "sea-traces-api-key",
-  baseUrl: "https://your-sea-traces.example.com",
-});
-```
-
-显式传参和环境变量等价，且显式传参优先级更高。
-
-## OpenTelemetry 使用
-
-```ts
-import { SeaTracesSpanProcessor } from "@sea-traces/otel";
-
-const processor = new SeaTracesSpanProcessor({
-  apiKey: "sea-traces-api-key",
-  baseUrl: "https://your-sea-traces.example.com",
-});
-```
-
-## 配置优先级
-
-SDK 按以下顺序选择 Sea Traces 配置：
-
-1. 显式传入 `publicKey`、`secretKey`、`baseUrl`
-2. 环境变量 `SEATRACES_PUBLIC_KEY`、`SEATRACES_SECRET_KEY`、`SEATRACES_BASE_URL`
-3. 显式传入 `projectId`、`baseUrl`
-4. 环境变量 `SEATRACES_PROJECT_ID`、`SEATRACES_BASE_URL`
-5. 显式传入 `apiKey`、`baseUrl`
-6. 环境变量 `SEA_TRACES_API_KEY`、`SEA_TRACES_BASE_URL`
-
-## 错误处理
-
-常见错误和处理方式：
-
-| 错误                | 原因                                 | 处理                                                   |
-| ------------------- | ------------------------------------ | ------------------------------------------------------ |
-| 认证配置不完整      | 项目、Gateway 或兼容直传配置缺少字段 | 完整设置一种认证模式                                   |
-| resolver 返回非 2xx | 凭证查询接口不可达或服务异常         | 检查 `SEA_TRACES_BASE_URL`、网络和 Sea Traces 服务状态 |
-| 查询不到 trace      | 数据未 flush 或服务地址指向错误环境  | 调用 flush/shutdown，确认 `SEA_TRACES_BASE_URL`        |
-
-日志和异常信息不会输出完整 API key、`publicKey`、`secretKey` 或原始凭证响应。
-
-## 从旧配置迁移
-
-旧方式通常需要直接配置 public key 和 secret key。迁移后只需要配置：
-
-```bash
-export SEA_TRACES_API_KEY="sea-traces-api-key"
-export SEA_TRACES_BASE_URL="https://your-sea-traces.example.com"
-```
-
-如果代码里原来显式传入底层项目凭证，可以改为：
-
-```ts
-const client = new SeaTracesClient({
-  apiKey: "sea-traces-api-key",
-  baseUrl: "https://your-sea-traces.example.com",
-});
-```
-
-## 安全建议
-
-- 不要把 `SEA_TRACES_API_KEY`、`SEATRACES_SECRET_KEY` 提交到 Git。
-- 不要提交 `.env` 文件。
-- 不要在日志里打印完整 API key、`publicKey` 或 `secretKey`。
-- 测试环境和生产环境都显式配置 `SEA_TRACES_BASE_URL`。
-- 容器或函数计算环境中，在启动时注入环境变量，避免在代码中硬编码。
+[MIT](LICENSE)

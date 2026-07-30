@@ -23,10 +23,10 @@ User-facing packages require one of:
 - legacy direct upload credentials (`SEATRACES_PUBLIC_KEY`,
   `SEATRACES_SECRET_KEY`, `SEATRACES_BASE_URL`)
 
-## 文档
+## Documentation
 
-- 根 README: ../../README.md
-- 配置说明: ../../README.md#推荐配置
+- Root README: ../../README.md
+- Configuration: ../../README.md#gateway-api
 
 ## License
 
