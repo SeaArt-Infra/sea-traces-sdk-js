@@ -29,6 +29,25 @@ SEATRACES_PROJECT_ID=project-id
 SEATRACES_BASE_URL=https://upload.sea-traces.example.com
 ```
 
+## Unified gateway API
+
+Use `SeaTracesApiClient` with a gateway URL and token. Every request includes
+`Authorization: Bearer <token>`.
+
+```ts
+const api = new SeaTracesApiClient({
+  baseUrl: "https://gateway.example.com",
+  token: "token",
+});
+const projects = await api.listProjects();
+const project = await api.createProject("checkout");
+await api.updateProject(project.id, "checkout-v2");
+await api.ingest(project.id, [
+  { type: "trace-create", body: { id: "trace-1", name: "checkout" } },
+]);
+const traces = await api.listTraces(project.id, { traceId: "trace-1" });
+```
+
 For legacy direct upload authentication, set:
 
 ```bash
