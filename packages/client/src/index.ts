@@ -1,4 +1,5 @@
 export * from "./LangfuseClient.js";
+export * from "./SeaTracesApiClient.js";
 // Sea Traces 对外别名，与内部 LangfuseClient 等价
 export { LangfuseClient as SeaTracesClient } from "./LangfuseClient.js";
 export * from "./prompt/index.js";
