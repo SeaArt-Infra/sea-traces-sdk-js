@@ -82,7 +82,7 @@ importers:
         version: 2.32.0(@typescript-eslint/parser@8.39.0(eslint@9.32.0(jiti@2.7.0))(typescript@5.8.3))(eslint@9.32.0(jiti@2.7.0))
       eslint-plugin-prettier:
         specifier: ^5.5.4
-        version: 5.5.4(eslint-config-prettier@10.1.8(eslint@9.32.0(jiti@2.7.0)))(eslint@9.32.0(jiti@2.7.0))(prettier@3.8.4)
+        version: 5.5.4(eslint-config-prettier@10.1.8(eslint@9.32.0(jiti@2.7.0)))(eslint@9.32.0(jiti@2.7.0))(prettier@3.9.6)
       happy-dom:
         specifier: ^20.8.9
         version: 20.8.9
@@ -99,8 +99,8 @@ importers:
         specifier: ^5.0.0
         version: 5.10.2(ws@8.20.0)(zod@3.25.76)
       prettier:
-        specifier: ^3.8.4
-        version: 3.8.4
+        specifier: ^3.9.6
+        version: 3.9.6
       release-it:
         specifier: ^20.2.0
         version: 20.2.0(@types/node@26.1.2)(magicast@0.3.5)
@@ -3000,8 +3000,8 @@ packages:
     resolution: {integrity: sha512-GbK2cP9nraSSUF9N2XwUwqfzlAFlMNYYl+ShE/V+H8a9uNl/oUqB1w2EL54Jh0OlyRSd8RfWYJ3coVS4TROP2w==}
     engines: {node: '>=6.0.0'}
 
-  prettier@3.8.4:
-    resolution: {integrity: sha512-N2MylSdi48+5N/6S5j+maeHbUSIzzZ5uOcX5Hm4QpV8Dkb1HFjfAKTKX6yNPJQD9AhcT3ifHNB66tWTTJDi11Q==}
+  prettier@3.9.6:
+    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -5642,10 +5642,10 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-prettier@5.5.4(eslint-config-prettier@10.1.8(eslint@9.32.0(jiti@2.7.0)))(eslint@9.32.0(jiti@2.7.0))(prettier@3.8.4):
+  eslint-plugin-prettier@5.5.4(eslint-config-prettier@10.1.8(eslint@9.32.0(jiti@2.7.0)))(eslint@9.32.0(jiti@2.7.0))(prettier@3.9.6):
     dependencies:
       eslint: 9.32.0(jiti@2.7.0)
-      prettier: 3.8.4
+      prettier: 3.9.6
       prettier-linter-helpers: 1.0.0
       synckit: 0.11.8
     optionalDependencies:
@@ -6712,7 +6712,7 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier@3.8.4: {}
+  prettier@3.9.6: {}
 
   protobufjs@7.5.5:
     dependencies:
