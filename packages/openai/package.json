@@ -37,6 +37,6 @@
     "@sea-traces/tracing": "workspace:^"
   },
   "devDependencies": {
-    "openai": "^5.0.0"
+    "openai": "^6.49.0"
   }
 }
