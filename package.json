@@ -34,7 +34,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@ai-sdk/anthropic": "^2",
+    "@ai-sdk/anthropic": "^4",
     "@ai-sdk/openai": "^4",
     "@eslint/js": "^9.39.5",
     "@langchain/core": "^1.2.4",
