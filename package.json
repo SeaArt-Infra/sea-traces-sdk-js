@@ -61,7 +61,7 @@
     "happy-dom": "^20.11.1",
     "husky": "^9.1.7",
     "mustache": "^4.2.0",
-    "nanoid": "^5.1.5",
+    "nanoid": "^6.0.1",
     "openai": "^6.49.0",
     "prettier": "^3.9.6",
     "release-it": "^21.0.2",
